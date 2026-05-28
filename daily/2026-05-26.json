@@ -1,0 +1,134 @@
+{
+  "G45": [
+    {
+      "channel": "151102-FB-PWA-24",
+      "visit": 353,
+      "register": 68,
+      "first_recharge": 31,
+      "timestamp": "2026-05-27 01:49:13"
+    },
+    {
+      "channel": "151102-FB-PWA-24",
+      "visit": 353,
+      "register": 68,
+      "first_recharge": 31,
+      "timestamp": "2026-05-27 01:56:17"
+    },
+    {
+      "channel": "151102-FB-PWA-24",
+      "visit": 356,
+      "register": 68,
+      "first_recharge": 31,
+      "timestamp": "2026-05-27 01:57:05"
+    },
+    {
+      "channel": "151102-FB-PWA-24",
+      "visit": 356,
+      "register": 68,
+      "first_recharge": 31,
+      "timestamp": "2026-05-27 02:00:25"
+    },
+    {
+      "channel": "151102-FB-PWA-24",
+      "visit": 378,
+      "register": 78,
+      "first_recharge": 34,
+      "timestamp": "2026-05-27 02:51:17"
+    },
+    {
+      "channel": "151102-FB-PWA-24",
+      "visit": 396,
+      "register": 84,
+      "first_recharge": 35,
+      "timestamp": "2026-05-27 03:54:42"
+    }
+  ],
+  "82B": [
+    {
+      "channel": "159002-FB-PWA-20",
+      "visit": 1679,
+      "register": 48,
+      "first_recharge": 31,
+      "timestamp": "2026-05-27 01:49:16"
+    },
+    {
+      "channel": "159002-FB-PWA-20",
+      "visit": 1679,
+      "register": 48,
+      "first_recharge": 31,
+      "timestamp": "2026-05-27 01:56:19"
+    },
+    {
+      "channel": "159002-FB-PWA-20",
+      "visit": 1697,
+      "register": 51,
+      "first_recharge": 33,
+      "timestamp": "2026-05-27 01:57:08"
+    },
+    {
+      "channel": "159002-FB-PWA-20",
+      "visit": 1697,
+      "register": 51,
+      "first_recharge": 33,
+      "timestamp": "2026-05-27 02:00:30"
+    },
+    {
+      "channel": "159002-FB-PWA-20",
+      "visit": 1777,
+      "register": 53,
+      "first_recharge": 36,
+      "timestamp": "2026-05-27 02:51:19"
+    },
+    {
+      "channel": "159002-FB-PWA-20",
+      "visit": 1890,
+      "register": 57,
+      "first_recharge": 37,
+      "timestamp": "2026-05-27 03:54:45"
+    }
+  ],
+  "35X": [
+    {
+      "channel": "527002-FB-PWA-13",
+      "visit": 632,
+      "register": 10,
+      "first_recharge": 11,
+      "timestamp": "2026-05-27 01:49:18"
+    },
+    {
+      "channel": "527002-FB-PWA-13",
+      "visit": 632,
+      "register": 10,
+      "first_recharge": 11,
+      "timestamp": "2026-05-27 01:56:22"
+    },
+    {
+      "channel": "527002-FB-PWA-13",
+      "visit": 632,
+      "register": 10,
+      "first_recharge": 11,
+      "timestamp": "2026-05-27 01:57:11"
+    },
+    {
+      "channel": "527002-FB-PWA-13",
+      "visit": 632,
+      "register": 10,
+      "first_recharge": 11,
+      "timestamp": "2026-05-27 02:00:35"
+    },
+    {
+      "channel": "527002-FB-PWA-13",
+      "visit": 676,
+      "register": 15,
+      "first_recharge": 14,
+      "timestamp": "2026-05-27 02:51:23"
+    },
+    {
+      "channel": "527002-FB-PWA-13",
+      "visit": 739,
+      "register": 23,
+      "first_recharge": 16,
+      "timestamp": "2026-05-27 03:54:47"
+    }
+  ]
+}

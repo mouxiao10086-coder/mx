@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>甲方后台定时查询工具</title>
+<style>
+* { margin:0; padding:0; box-sizing: border-box; }
+body { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif; background: #f5f5f7; color: #1d1d1f; }
+.header { background: #fff; border-bottom: 1px solid #e5e5ea; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; position: sticky; top:0; z-index:10; }
+.header-left { display: flex; align-items: center; }
+.tab { padding: 12px 24px; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; color: #86868b; user-select: none; }
+.tab.active { color: #007aff; border-bottom-color: #007aff; font-weight: 600; }
+.tab:hover { color: #007aff; }
+.header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.user-info { color: #86868b; }
+.btn-logout { padding: 4px 12px; border: 1px solid #d2d2d7; border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; }
+.btn-logout:hover { background: #f0f0f0; }
+
+.container { max-width: 960px; margin:0 auto; padding: 20px; }
+
+.controls { display: flex; gap:12px; margin-bottom:16px; align-items: center; flex-wrap: wrap; }
+.controls select { padding: 6px 12px; border:1px solid #d2d2d7; border-radius:6px; font-size:14px; background: #fff; }
+.controls span { font-size:14px; color:#86868b; }
+.btn { padding:6px 14px; border:1px solid #d2d2d7; border-radius:6px; font-size:13px; background:#fff; cursor:pointer; }
+.btn:hover { background: #f0f0f0; }
+.btn-primary { background: #007aff; color:#fff; border-color:#007aff; }
+.btn-primary:hover { background: #0066d6; }
+.btn-danger { color:#ff3b30; border-color:#ff3b30; }
+.btn-danger:hover { background: #fff0f0; }
+.btn-sm { padding:4px 10px; font-size:12px; }
+
+.product-section { background:#fff; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px; overflow:hidden; }
+.product-header { font-size:15px; font-weight:600; padding:12px 16px; border-bottom:1px solid #e5e5ea; background:#fafafa; display:flex; justify-content:space-between; align-items:center; }
+table { width:100%; border-collapse: collapse; font-size:13px; }
+th { text-align:left; padding:8px 16px; color:#86868b; font-weight:500; font-size:12px; border-bottom:1px solid #e5e5ea; background:#fafafa; }
+td { padding:8px 16px; border-bottom:1px solid #f0f0f0; }
+.num { text-align:right; font-variant-numeric: tabular-nums; }
+
+.pager { display:flex; align-items:center; justify-content:center; gap:6px; padding:10px 16px; border-top:1px solid #e5e5ea; background:#fafafa; }
+.pager button { padding:4px 10px; border:1px solid #d2d2d7; border-radius:4px; font-size:12px; background:#fff; cursor:pointer; min-width:28px; }
+.pager button:hover { background:#f0f0f0; }
+.pager button.active { background:#007aff; color:#fff; border-color:#007aff; }
+.pager button:disabled { opacity:0.3; cursor:default; }
+.pager .page-info { font-size:12px; color:#86868b; }
+
+.empty { text-align:center; padding:24px; color:#86868b; font-size:14px; }
+
+.section { background:#fff; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:20px; overflow:hidden; }
+.section-title { font-size:15px; font-weight:600; padding:14px 16px; border-bottom:1px solid #e5e5ea; background:#fafafa; display:flex; justify-content:space-between; align-items:center; }
+.section-body { padding:16px; }
+
+.form-row { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+.form-row label { font-size:13px; color:#86868b; min-width:60px; }
+.form-row input, .form-row select { padding:6px 10px; border:1px solid #d2d2d7; border-radius:6px; font-size:13px; flex:1; min-width:120px; }
+.form-row .path-display { flex:1; padding:6px 10px; background:#f5f5f5; border-radius:6px; font-size:13px; color:#1d1d1f; font-family:"SF Mono", Menlo, monospace; word-break:break-all; min-width:120px; }
+
+.product-card { background:#fafafa; border:1px solid #e5e5ea; border-radius:8px; padding:14px; margin-bottom:10px; }
+.product-card .name { font-weight:600; font-size:14px; margin-bottom:6px; }
+.product-card .meta { font-size:12px; color:#86868b; }
+.product-card .actions { float:right; display:flex; gap:6px; }
+
+.cron-display { font-family:"SF Mono", Menlo, monospace; background:#f5f5f5; padding:8px 12px; border-radius:6px; font-size:13px; margin:8px 0; word-break:break-all; }
+.status { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+.status-on { background:#34c759; }
+.status-off { background:#86868b; }
+
+.test-result { margin-top:8px; padding:10px; border-radius:6px; font-size:13px; }
+.test-ok { background:#e8f5e9; color:#2e7d32; }
+.test-fail { background:#fce4ec; color:#c62828; }
+.test-pending { background:#fff8e1; color:#f57c00; }
+
+.modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.3); z-index:100; display:flex; align-items:center; justify-content:center; }
+.modal { background:#fff; border-radius:12px; padding:24px; width:460px; max-width:90vw; max-height:85vh; overflow-y:auto; }
+.modal h3 { margin-bottom:16px; font-size:16px; }
+.modal .form-row { margin-bottom:10px; }
+.modal .btn-row { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+.modal p { font-size:14px; color:#86868b; margin-bottom:12px; line-height:1.5; }
+.hidden { display:none !important; }
+
+/* Cron builder */
+.cron-builder { margin-top:12px; }
+.cron-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
+.cron-row label { font-size:13px; color:#86868b; min-width:50px; }
+.cron-row select, .cron-row input { padding:6px 10px; border:1px solid #d2d2d7; border-radius:6px; font-size:13px; }
+.cron-preview { background:#e8f4fd; border:1px solid #b3d9f2; padding:10px 14px; border-radius:8px; margin:10px 0; }
+.cron-preview .expr { font-family:"SF Mono", Menlo, monospace; font-size:16px; font-weight:600; color:#007aff; }
+.cron-preview .desc { font-size:12px; color:#86868b; margin-top:4px; }
+.cron-presets { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.cron-presets button { padding:4px 10px; border-radius:14px; font-size:12px; border:1px solid #d2d2d7; background:#fff; cursor:pointer; }
+.cron-presets button:hover { background:#e5e5ea; }
+.cron-presets button.active { background:#007aff; color:#fff; border-color:#007aff; }
+
+/* 管理员表格 */
+.admin-table { width:100%; border-collapse:collapse; font-size:13px; }
+.admin-table th { background:#fafafa; padding:8px 12px; text-align:left; border-bottom:1px solid #e5e5ea; color:#86868b; }
+.admin-table td { padding:8px 12px; border-bottom:1px solid #f0f0f0; }
+.admin-table tr:hover { background:#fafafa; }
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div class="header">
+  <div class="header-left">
+    <div class="tab active" onclick="switchTab('data')">📊 数据</div>
+    <div class="tab" onclick="switchTab('settings')">⚙️ 设置</div>
+    <div class="tab" id="tabAdmin" style="display:none" onclick="switchTab('admin')">👥 管理</div>
+  </div>
+  <div class="header-right">
+    <span class="user-info" id="userInfo">加载中...</span>
+    <button class="btn-logout" onclick="logout()">退出</button>
+  </div>
+</div>
+
+<!-- ============ 数据页 ============ -->
+<div id="page-data" class="container">
+  <div class="controls">
+    <span>日期</span>
+    <select id="dateSelect" onchange="loadData()"></select>
+    <span>产品</span>
+    <select id="productSelect" onchange="renderData()">
+      <option value="all">全部</option>
+    </select>
+    <button class="btn" onclick="loadData()">🔄 刷新</button>
+    <button class="btn btn-primary" id="btnFetch" onclick="manualFetch()">⚡ 立即采集</button>
+  </div>
+  <div id="dataContent"></div>
+</div>
+
+<!-- ============ 设置页 ============ -->
+<div id="page-settings" class="container hidden">
+  <div class="section">
+    <div class="section-title">数据存储</div>
+    <div class="section-body">
+      <div class="form-row">
+        <label>存储路径</label>
+        <div id="dataRootPath" class="path-display">加载中...</div>
+        <button class="btn" onclick="chooseDataRoot()">更改</button>
+      </div>
+      <div style="font-size:12px;color:#86868b">产品配置、采集数据均保存在此目录下</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">产品管理</div>
+    <div class="section-body">
+      <div id="productList"></div>
+      <button class="btn btn-primary" onclick="showAddProduct()" style="margin-top:8px">+ 添加产品</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">定时任务</div>
+    <div class="section-body">
+      <div id="cronStatus"></div>
+      
+      <div class="cron-builder">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">快捷设置</div>
+        <div class="cron-presets">
+          <button onclick="applyPreset('5min_work')">工作时每5分钟</button>
+          <button onclick="applyPreset('10min_work')">工作时每10分钟</button>
+          <button onclick="applyPreset('hourly_work')">工作时每小时</button>
+          <button onclick="applyPreset('5min_all')">全天每5分钟</button>
+          <button onclick="applyPreset('hourly_all')">全天每小时</button>
+          <button onclick="applyPreset('custom')">自定义</button>
+        </div>
+        
+        <div id="cronCustomPanel" class="hidden">
+          <div class="cron-row">
+            <label>频率</label>
+            <select id="cronFreq" onchange="buildCron()">
+              <option value="1">每 1 分钟</option>
+              <option value="5" selected>每 5 分钟</option>
+              <option value="10">每 10 分钟</option>
+              <option value="15">每 15 分钟</option>
+              <option value="30">每 30 分钟</option>
+              <option value="60">每 1 小时</option>
+              <option value="120">每 2 小时</option>
+              <option value="fixed">固定分钟（如 :50）</option>
+            </select>
+            <input id="cronFixedMin" type="number" min="0" max="59" value="50" placeholder="分钟" style="max-width:70px;display:none" onchange="buildCron()">
+          </div>
+          <div class="cron-row">
+            <label>时段</label>
+            <select id="cronPeriod" onchange="buildCron()">
+              <option value="all">全天 (0-23点)</option>
+              <option value="work" selected>非维护时段 (0-9点,18-23点)</option>
+              <option value="range">指定时段</option>
+              <option value="custom">自定义小时</option>
+            </select>
+          </div>
+          <div id="cronRangeRow" class="cron-row hidden">
+            <label>从</label>
+            <input id="cronHourStart" type="number" min="0" max="23" value="9" style="max-width:70px" onchange="buildCron()">
+            <label style="min-width:auto">点到</label>
+            <input id="cronHourEnd" type="number" min="0" max="23" value="12" style="max-width:70px" onchange="buildCron()">
+            <label style="min-width:auto">点</label>
+          </div>
+          <div id="cronCustomHourRow" class="cron-row hidden">
+            <label>小时</label>
+            <input id="cronCustomHour" placeholder="如 9,12,15 或 0-9,18-23" style="flex:2" oninput="buildCron()">
+          </div>
+          <div class="cron-row">
+            <label>日期</label>
+            <select id="cronDay" onchange="buildCron()">
+              <option value="*">每天</option>
+              <option value="1-5">仅工作日(周一至周五)</option>
+              <option value="0,6">仅周末</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="cron-preview">
+          <div>生成的表达式：</div>
+          <div class="expr" id="cronExpr">*/5 0-9,18-23 * * *</div>
+          <div class="desc" id="cronDesc">每5分钟，在0-9点和18-23点，每天执行</div>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <button class="btn btn-primary" onclick="saveCron()">✅ 保存定时任务</button>
+        <button class="btn btn-danger" onclick="removeCron()">🗑️ 删除定时任务</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">数据保留</div>
+    <div class="section-body">
+      <div class="form-row">
+        <label>保留天数</label>
+        <input id="retentionDays" type="number" value="30" min="1" style="max-width:100px">
+        <button class="btn btn-primary" onclick="saveRetention()">保存</button>
+        <button class="btn" onclick="runCleanup()">立即清理</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 管理页（管理员） ============ -->
+<div id="page-admin" class="container hidden">
+  <div class="section">
+    <div class="section-title">用户管理</div>
+    <div class="section-body">
+      <div style="margin-bottom:12px">
+        <button class="btn btn-primary" onclick="showAddUser()">+ 添加用户</button>
+      </div>
+      <table class="admin-table" id="userTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>用户名</th>
+            <th>角色</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="userTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">所有产品</div>
+    <div class="section-body">
+      <table class="admin-table" id="allProductsTable">
+        <thead>
+          <tr>
+            <th>用户</th>
+            <th>产品名称</th>
+            <th>接口类型</th>
+            <th>渠道</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="allProductsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 产品弹窗 ============ -->
+<div id="productModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modalTitle">添加产品</h3>
+    
+    <!-- 查询链接 -->
+    <div class="form-row">
+      <label>查询链接</label>
+      <input id="pUrl" placeholder="从浏览器粘贴完整查询链接" oninput="handleUrlInput()" onpaste="setTimeout(handleUrlInput,50)" style="flex:3">
+    </div>
+    <div style="font-size:11px;color:#86868b;margin:-6px 0 10px 68px">例如: http://16.163.114.99:8990/reportniunai.php?id=16&token=xxx&channels=...&timezone=...</div>
+    
+    <!-- 解析摘要（解析成功后显示） -->
+    <div id="parsedSummary" style="display:none;background:#f5f5f7;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;">
+        <span><span style="color:#86868b">接口</span> <strong id="sumReportType">-</strong></span>
+        <span><span style="color:#86868b">渠道</span> <strong id="sumChannels">-</strong></span>
+        <span><span style="color:#86868b">时区</span> <strong id="sumTimezone">-</strong></span>
+      </div>
+      <!-- 隐藏字段存储解析结果 -->
+      <input type="hidden" id="pReportType">
+      <input type="hidden" id="pId">
+      <input type="hidden" id="pToken">
+      <input type="hidden" id="pChannels">
+      <input type="hidden" id="pTimezone">
+    </div>
+    
+    <!-- 产品名称 -->
+    <div class="form-row">
+      <label>产品名称</label>
+      <input id="pName" placeholder="自定义名称，如 G45、82B" style="flex:3">
+    </div>
+    
+    <div id="testResult"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="testProduct()">测试连接</button>
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveProduct()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 用户弹窗（管理员） ============ -->
+<div id="userModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="userModalTitle">添加用户</h3>
+    <div class="form-row">
+      <label>用户名</label>
+      <input id="uUsername" placeholder="用户名" style="flex:3">
+    </div>
+    <div class="form-row">
+      <label>密码</label>
+      <input id="uPassword" type="password" placeholder="密码" style="flex:3">
+    </div>
+    <div class="form-row">
+      <label></label>
+      <label style="flex:3;display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="uIsAdmin"> 管理员权限
+      </label>
+    </div>
+    <div id="userModalError" style="display:none;color:#ff3b30;font-size:13px;margin-bottom:8px"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeUserModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveUser()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = location.origin;
+let _token = localStorage.getItem('token');
+let _user = null;
+let _products = [];
+const PAGE_SIZE = 5;
+let _pages = {};
+
+// ============ 初始化 ============
+window.onload = async function() {
+  // 验证Token
+  if (!_token) {
+    window.location.href = '/login.html';
+    return;
+  }
+  
+  const valid = await verifyToken();
+  if (!valid) {
+    window.location.href = '/login.html';
+    return;
+  }
+  
+  // 加载数据
+  loadData();
+  loadSettings();
+  
+  // 如果是管理员，显示管理Tab
+  if (_user && _user.is_admin) {
+    document.getElementById('tabAdmin').style.display = 'block';
+  }
+};
+
+// ============ Token验证 ============
+async function verifyToken() {
+  try {
+    const res = await fetch('/api/verify_token', {
+      headers: { 'Authorization': `Bearer ${_token}` }
+    });
+    const result = await res.json();
+    if (result.ok) {
+      _user = result.user;
+      document.getElementById('userInfo').textContent = `${_user.username} (${_user.is_admin ? '管理员' : '普通用户'})`;
+      return true;
+    } else {
+      logout();
+      return false;
+    }
+  } catch (e) {
+    logout();
+    return false;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login.html';
+}
+
+// ============ Tab切换 ============
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['data','settings','admin'];
+    t.classList.toggle('active', names[i] === tab);
+  });
+  document.getElementById('page-data').classList.toggle('hidden', tab !== 'data');
+  document.getElementById('page-settings').classList.toggle('hidden', tab !== 'settings');
+  document.getElementById('page-admin').classList.toggle('hidden', tab !== 'admin');
+  
+  if (tab === 'admin') loadAdminData();
+}
+
+// ============ 数据页 ============
+async function loadData() {
+  // 加载日期列表
+  const res = await fetch('/api/dates', {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  });
+  const dates = await res.json();
+  const sel = document.getElementById('dateSelect');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  dates.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = d;
+    sel.appendChild(opt);
+  });
+  if (prev && dates.includes(prev)) sel.value = prev;
+  else if (dates.length) sel.value = dates[0];
+  
+  const date = sel.value;
+  if (!date) return;
+  
+  // 加载数据
+  const res2 = await fetch(`/api/data?date=${date}`, {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  });
+  const json = await res2.json();
+  window._data = json.data;
+  
+  // 加载产品配置
+  const products = await (await fetch('/api/products', {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  })).json();
+  _products = products;
+  
+  const pSel = document.getElementById('productSelect');
+  const prevP = pSel.value;
+  pSel.innerHTML = '<option value="all">全部</option>';
+  products.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.name; opt.textContent = p.name;
+    pSel.appendChild(opt);
+  });
+  if (prevP && products.some(p => p.name === prevP)) pSel.value = prevP;
+  
+  renderData();
+}
+
+function renderData() {
+  const data = window._data;
+  if (!data) return;
+  const filter = document.getElementById('productSelect').value;
+  const content = document.getElementById('dataContent');
+  content.innerHTML = '';
+  
+  const products = filter === 'all' ? _products.map(p => p.name) : [filter];
+  products.forEach(name => {
+    const records = data[name];
+    if (!records || !records.length) {
+      content.innerHTML += `<div class="product-section">
+        <div class="product-header"><span>${name}</span><span style="font-size:12px;color:#86868b">暂无数据</span></div>
+      </div>`;
+      return;
+    }
+    
+    const sorted = [...records].reverse();
+    const total = sorted.length;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    if (!_pages[name]) _pages[name] = 1;
+    let page = _pages[name];
+    if (page > totalPages) page = totalPages;
+    _pages[name] = page;
+    
+    const start = (page - 1) * PAGE_SIZE;
+    const pageRecords = sorted.slice(start, start + PAGE_SIZE);
+    
+    let html = `<div class="product-section">
+      <div class="product-header"><span>${name} · ${sorted[0].channel}</span><span style="font-size:12px;color:#86868b">共 ${total} 条</span></div>
+      <table>
+        <thead><tr><th>时间</th><th class="num">访问</th><th class="num">注册</th><th class="num">首充</th></tr></thead>
+        <tbody>`;
+    
+    pageRecords.forEach(r => {
+      const time = r.timestamp.replace(/^\d{4}-\d{2}-\d{2} /, '');
+      html += `<tr><td>${time}</td><td class="num">${r.visit.toLocaleString()}</td><td class="num">${r.register.toLocaleString()}</td><td class="num">${r.first_recharge.toLocaleString()}</td></tr>`;
+    });
+    
+    html += '</tbody></table>';
+    
+    // 分页
+    if (totalPages > 1) {
+      html += `<div class="pager">`;
+      html += `<button ${page<=1?'disabled':''} onclick="goPage('${name}',${page-1})">‹</button>`;
+      // 页码按钮
+      let pages = [];
+      if (totalPages <= 5) {
+        for (let i=1; i<=totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        if (page > 3) pages.push('...');
+        let s = Math.max(2, page-1), e = Math.min(totalPages-1, page+1);
+        for (let i=s; i<=e; i++) pages.push(i);
+        if (page < totalPages-2) pages.push('...');
+        pages.push(totalPages);
+      }
+      pages.forEach(p => {
+        if (p === '...') {
+          html += `<span class="page-info">...</span>`;
+        } else {
+          html += `<button class="${p===page?'active':''}" onclick="goPage('${name}',${p})">${p}</button>`;
+        }
+      });
+      html += `<button ${page>=totalPages?'disabled':''} onclick="goPage('${name}',${page+1})">›</button>`;
+      html += `</div>`;
+    }
+    
+    html += '</div>';
+    content.innerHTML += html;
+  });
+  
+  if (!content.innerHTML) content.innerHTML = '<div class="empty">暂无数据</div>';
+}
+
+function goPage(name, page) {
+  _pages[name] = page;
+  renderData();
+}
+
+// ============ 设置页 ============
+let _editingProduct = null;
+
+async function loadSettings() {
+  const appInfo = await (await fetch('/api/app/info')).json();
+  document.getElementById('dataRootPath').textContent = appInfo.data_root;
+  
+  const products = await (await fetch('/api/products', {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  })).json();
+  _products = products;
+  const list = document.getElementById('productList');
+  list.innerHTML = '';
+  products.forEach(p => {
+    const metaParts = [`接口: report${p.report_type}.php`, `渠道: ${(p.channels||[]).join(', ')}`];
+    list.innerHTML += `<div class="product-card">
+      <div class="actions">
+        <button class="btn btn-sm" onclick='editProduct(${JSON.stringify(p).replace(/'/g,"&#39;")})'>编辑</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.name}')">删除</button>
+      </div>
+      <div class="name">${p.name}</div>
+      <div class="meta">${metaParts.join(' | ')}</div>
+    </div>`;
+  });
+  if (!products.length) list.innerHTML = '<div class="empty">暂无产品，点击下方添加</div>';
+  
+  // 定时任务状态
+  const cronInfo = await (await fetch('/api/crontab', {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  })).json();
+  const isOn = cronInfo.active;
+  document.getElementById('cronStatus').innerHTML = `<span class="status ${isOn?'status-on':'status-off'}"></span>
+    <strong>定时采集：${isOn?'已启用':'未启用'}</strong>
+    <div class="cron-display">${cronInfo.cron_expr || '未配置'}</div>`;
+  
+  if (cronInfo.cron_expr) {
+    parseCronToBuilder(cronInfo.cron_expr);
+  }
+  
+  const ret = await (await fetch('/api/retention', {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  })).json();
+  document.getElementById('retentionDays').value = ret.retention_days;
+}
+
+async function chooseDataRoot() {
+  let path = prompt('请输入新的数据存储路径：', '');
+  if (!path) return;
+  const result = await (await fetch('/api/app/data-root', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({path}),
+  })).json();
+  if (result.ok) {
+    document.getElementById('dataRootPath').textContent = result.data_root;
+  } else {
+    alert('设置失败：' + (result.error || '未知错误'));
+  }
+}
+
+// ============ 产品管理 ============
+const BASE_REPORT_URL = 'http://16.163.114.99:8990';
+
+function showAddProduct() {
+  _editingProduct = null;
+  document.getElementById('modalTitle').textContent = '添加产品';
+  document.getElementById('pUrl').value = '';
+  document.getElementById('pName').value = '';
+  document.getElementById('testResult').innerHTML = '';
+  hideParsedSummary();
+  document.getElementById('productModal').classList.remove('hidden');
+}
+
+function hideParsedSummary() {
+  document.getElementById('parsedSummary').style.display = 'none';
+  ['pReportType','pId','pToken','pChannels','pTimezone'].forEach(id => document.getElementById(id).value = '');
+}
+
+function showParsedSummary(parsed) {
+  document.getElementById('sumReportType').textContent = 'report' + parsed.report_type + '.php';
+  document.getElementById('sumChannels').textContent = parsed.channels.join(', ') || '-';
+  document.getElementById('sumTimezone').textContent = parsed.timezone;
+  document.getElementById('parsedSummary').style.display = 'block';
+}
+
+// 从 URL 解析产品参数
+function parseProductUrl(url) {
+  try {
+    const u = new URL(url.trim());
+    const file = u.pathname.split('/').pop() || '';
+    let report_type = '';
+    if (file.includes('zhugan')) report_type = 'zhugan';
+    else if (file.includes('niunai')) report_type = 'niunai';
+    else return null;
+    
+    const id = u.searchParams.get('id');
+    const token = u.searchParams.get('token');
+    const channelsRaw = u.searchParams.get('channels');
+    const timezone = u.searchParams.get('timezone') || 'Etc/GMT+3';
+    
+    if (!id || !token) return null;
+    
+    const channels = channelsRaw ? channelsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    return { report_type, id, token, channels, timezone };
+  } catch (e) {
+    return null;
+  }
+}
+
+// 从产品参数反向拼接 URL
+function buildProductUrl(p) {
+  const endpoint = p.report_type === 'zhugan' ? 'reportzhugan.php' : 'reportniunai.php';
+  const ch = (p.channels || []).join(',');
+  const id = p.id || p.pid || '';
+  const token = p.token || '';
+  const tz = p.timezone || 'Etc/GMT+3';
+  return `${BASE_REPORT_URL}/${endpoint}?id=${id}&token=${token}&channels=${encodeURIComponent(ch)}&timezone=${encodeURIComponent(tz)}`;
+}
+
+function handleUrlInput() {
+  const url = document.getElementById('pUrl').value.trim();
+  const parsed = parseProductUrl(url);
+  if (!parsed) {
+    hideParsedSummary();
+    return;
+  }
+  // 填充隐藏字段
+  document.getElementById('pReportType').value = parsed.report_type;
+  document.getElementById('pId').value = parsed.id;
+  document.getElementById('pToken').value = parsed.token;
+  document.getElementById('pChannels').value = parsed.channels.join(',');
+  document.getElementById('pTimezone').value = parsed.timezone;
+  showParsedSummary(parsed);
+  
+  // 如果产品名称为空，自动填充第一个渠道名作为默认值
+  const nameInput = document.getElementById('pName');
+  if (!nameInput.value.trim() && parsed.channels.length > 0) {
+    nameInput.value = parsed.channels[0];
+  }
+}
+
+function editProduct(p) {
+  _editingProduct = p.name;
+  document.getElementById('modalTitle').textContent = '编辑产品';
+  document.getElementById('pName').value = p.name;
+  document.getElementById('testResult').innerHTML = '';
+  // 反向拼接 URL
+  const url = buildProductUrl(p);
+  document.getElementById('pUrl').value = url;
+  handleUrlInput(); // 触发解析显示摘要
+  document.getElementById('productModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('productModal').classList.add('hidden');
+}
+
+function getProductFromForm() {
+  return {
+    name: document.getElementById('pName').value.trim(),
+    report_type: document.getElementById('pReportType').value,
+    id: document.getElementById('pId').value,
+    token: document.getElementById('pToken').value.trim(),
+    channels: document.getElementById('pChannels').value.split(',').map(s=>s.trim()).filter(Boolean),
+    timezone: document.getElementById('pTimezone').value.trim() || 'Etc/GMT+3',
+  };
+}
+
+async function saveProduct() {
+  const p = getProductFromForm();
+  if (!p.report_type || !p.id || !p.token) {
+    alert('请粘贴有效的查询链接，系统将自动解析参数');
+    return;
+  }
+  if (!p.name) {
+    alert('请填写产品名称');
+    return;
+  }
+  const body = _editingProduct ? { old_name: _editingProduct, product: p } : p;
+  const url = _editingProduct ? `/api/products/update` : `/api/products/add`;
+  const result = await (await fetch(url, {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}`},
+    body: JSON.stringify(body),
+  })).json();
+  
+  if (result.ok) {
+    closeModal();
+    loadSettings();
+    loadData();
+  } else {
+    alert(result.error);
+  }
+}
+
+async function deleteProduct(name) {
+  if (!confirm(`确定删除产品 ${name}？`)) return;
+  await fetch(`/api/products/delete`, {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}`},
+    body: JSON.stringify({name}),
+  });
+  loadSettings();
+  loadData();
+}
+
+async function testProduct() {
+  const p = getProductFromForm();
+  if (!p.report_type || !p.id || !p.token) {
+    alert('请先粘贴查询链接');
+    return;
+  }
+  document.getElementById('testResult').innerHTML = '<div class="test-result test-pending">⏳ 测试中...</div>';
+  const result = await (await fetch('/api/products/test', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({product: p}),
+  })).json();
+  
+  const el = document.getElementById('testResult');
+  if (result.ok) {
+    const d = result.data[0] || {};
+    el.innerHTML = `<div class="test-result test-ok">✅ 连接成功！ 渠道: ${d.channel||'-'} | 访问: ${d.visit||0} | 注册: ${d.register||0} | 首充: ${d.first_recharge||0}</div>`;
+  } else {
+    el.innerHTML = `<div class="test-result test-fail">❌ ${result.error}</div>`;
+  }
+}
+
+// ============ Cron 辅助函数 ============
+function expandHours(hourExpr) {
+  if (hourExpr === '*') {
+    return Array.from({length:24}, (_,i) => i);
+  }
+  const hours = new Set();
+  hourExpr.split(',').forEach(part => {
+    part = part.trim();
+    if (part.includes('-')) {
+      const [s, e] = part.split('-').map(Number);
+      for (let i=s; i<=e; i++) hours.add(i);
+    } else {
+      hours.add(parseInt(part));
+    }
+  });
+  return [...hours].sort((a,b) => a-b);
+}
+
+// ============ Cron 可视化构建 ============
+function applyPreset(preset) {
+  document.querySelectorAll('.cron-presets button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  const customPanel = document.getElementById('cronCustomPanel');
+  if (preset === 'custom') {
+    customPanel.classList.remove('hidden');
+    buildCron();
+    return;
+  }
+  customPanel.classList.add('hidden');
+  
+  const presets = {
+    '5min_work':   { freq:'5', period:'work', day:'*', expr:'*/5 0-9,18-23 * * *', desc:'每5分钟，非维护时段(0-9点,18-23点)，每天' },
+    '10min_work': { freq:'10', period:'work', day:'*', expr:'*/10 0-9,18-23 * * *', desc:'每10分钟，非维护时段(0-9点,18-23点)，每天' },
+    'hourly_work':{ freq:'60', period:'work', day:'*', expr:'0 0-9,18-23 * * *', desc:'每小时整点，非维护时段(0-9点,18-23点)，每天' },
+    '5min_all':    { freq:'5', period:'all',  day:'*', expr:'*/5 * * * *', desc:'每5分钟，全天24小时，每天' },
+    'hourly_all':  { freq:'60', period:'all',  day:'*', expr:'0 * * * *', desc:'每小时整点，全天24小时，每天' },
+  };
+  const p = presets[preset];
+  document.getElementById('cronExpr').textContent = p.expr;
+  document.getElementById('cronDesc').textContent = p.desc;
+  document.getElementById('cronSchedule') && (document.getElementById('cronSchedule').value = p.expr);
+  // 同步到自定义面板
+  document.getElementById('cronFreq').value = p.freq;
+  document.getElementById('cronPeriod').value = p.period;
+  document.getElementById('cronDay').value = p.day;
+}
+
+function buildCron() {
+  const freq = document.getElementById('cronFreq').value;
+  const period = document.getElementById('cronPeriod').value;
+  const day = document.getElementById('cronDay').value;
+  
+  // 分钟字段
+  let minute;
+  if (freq === 'fixed') {
+    minute = document.getElementById('cronFixedMin').value || '0';
+    document.getElementById('cronFixedMin').style.display = '';
+  } else {
+    document.getElementById('cronFixedMin').style.display = 'none';
+    if (freq === '60') minute = '0';
+    else if (freq === '120') minute = '0';
+    else minute = `*/${freq}`;
+  }
+  
+  // 小时字段
+  let hour;
+  let hourDesc;
+  if (period === 'all') {
+    hour = '*';
+    hourDesc = '全天24小时';
+    document.getElementById('cronRangeRow').classList.add('hidden');
+    document.getElementById('cronCustomHourRow').classList.add('hidden');
+  } else if (period === 'work') {
+    hour = '0-9,18-23';
+    hourDesc = '非维护时段(0-9点,18-23点)';
+    document.getElementById('cronRangeRow').classList.add('hidden');
+    document.getElementById('cronCustomHourRow').classList.add('hidden');
+  } else if (period === 'range') {
+    document.getElementById('cronRangeRow').classList.remove('hidden');
+    document.getElementById('cronCustomHourRow').classList.add('hidden');
+    const s = parseInt(document.getElementById('cronHourStart').value) || 0;
+    const e = parseInt(document.getElementById('cronHourEnd').value) || 23;
+    hour = `${s}-${e}`;
+    hourDesc = `${s}-${e}点`;
+  } else {
+    document.getElementById('cronRangeRow').classList.add('hidden');
+    document.getElementById('cronCustomHourRow').classList.remove('hidden');
+    hour = document.getElementById('cronCustomHour').value.trim() || '*';
+    hourDesc = `${hour}点`;
+  }
+  
+  // 120分钟特殊处理：在选定时段内每2小时
+  let finalHour = hour;
+  if (freq === '120') {
+    const expanded = expandHours(hour);
+    const filtered = expanded.filter(h => h % 2 === 0);
+    finalHour = filtered.length ? filtered.join(',') : '0';
+    minute = '0';
+  }
+  
+  const expr = `${minute} ${finalHour} * * ${day}`;
+  
+  // 描述
+  let freqDesc;
+  if (freq === 'fixed') freqDesc = `每小时的第${minute}分钟`;
+  else if (freq === '60') freqDesc = '每小时整点';
+  else if (freq === '120') freqDesc = '每2小时';
+  else freqDesc = `每${freq}分钟`;
+  
+  let dayDesc = day === '*' ? '每天' : day === '1-5' ? '工作日' : '周末';
+  let actualHourDesc = (freq === '120') ? `${hourDesc}内每2小时` : hourDesc;
+  const desc = `${freqDesc}，${actualHourDesc}，${dayDesc}执行`;
+  
+  document.getElementById('cronExpr').textContent = expr;
+  document.getElementById('cronDesc').textContent = desc;
+}
+
+function parseCronToBuilder(cronLine) {
+  const parts = cronLine.trim().split(/\s+/);
+  let exprStart = -1;
+  for (let i=0; i<parts.length; i++) {
+    if (/^[\d*,/-]+$/.test(parts[i])) {
+      exprStart = i;
+      break;
+    }
+  }
+  if (exprStart < 0) return;
+  
+  const [minute, hour, , , dow] = parts.slice(exprStart, exprStart+5);
+  
+  // 更新 builder
+  document.getElementById('cronCustomPanel').classList.remove('hidden');
+  
+  // 频率
+  if (minute.startsWith('*/')) {
+    const n = minute.slice(2);
+    document.getElementById('cronFreq').value = n;
+  } else if (minute === '0' && hour.startsWith('*/')) {
+    document.getElementById('cronFreq').value = '120';
+  } else {
+    document.getElementById('cronFreq').value = 'fixed';
+    document.getElementById('cronFixedMin').value = minute;
+  }
+  
+  // 时段
+  if (hour === '*') {
+    document.getElementById('cronPeriod').value = 'all';
+  } else if (hour === '0-9,18-23') {
+    document.getElementById('cronPeriod').value = 'work';
+  } else if (hour.includes('-') && !hour.includes(',')) {
+    document.getElementById('cronPeriod').value = 'range';
+    const [s,e] = hour.split('-');
+    document.getElementById('cronHourStart').value = s;
+    document.getElementById('cronHourEnd').value = e;
+  } else {
+    document.getElementById('cronPeriod').value = 'custom';
+    document.getElementById('cronCustomHour').value = hour;
+  }
+  
+  document.getElementById('cronDay').value = dow || '*';
+  
+  buildCron();
+}
+
+async function saveCron() {
+  const schedule = document.getElementById('cronExpr').textContent.trim();
+  if (!schedule) return alert('请先设置定时规则');
+  const result = await (await fetch('/api/crontab/set', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}`},
+    body: JSON.stringify({schedule}),
+  })).json();
+  if (result.ok) alert('定时任务已保存 ✅\n表达式：' + schedule);
+  else alert('保存失败：' + (result.error || ''));
+  loadSettings();
+}
+
+async function removeCron() {
+  if (!confirm('确定删除定时任务？')) return;
+  await fetch('/api/crontab/remove', {
+    method: 'POST', headers: {'Authorization': `Bearer ${_token}`}
+  });
+  loadSettings();
+}
+
+// ============ 数据保留 ============
+async function saveRetention() {
+  const days = document.getElementById('retentionDays').value;
+  await fetch('/api/retention/set', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}`},
+    body: JSON.stringify({days: parseInt(days)}),
+  });
+  alert('已保存');
+}
+
+async function runCleanup() {
+  const result = await (await fetch('/api/cleanup', {
+    method: 'POST', headers: {'Authorization': `Bearer ${_token}`}
+  })).json();
+  alert(`清理完成，删除了 ${result.removed} 天的旧数据（${result.cutoff} 之前）`);
+}
+
+// ============ 手动采集 ============
+async function manualFetch() {
+  const btn = document.getElementById('btnFetch');
+  btn.disabled = true;
+  btn.textContent = '⏳ 采集中...';
+  try {
+    const result = await (await fetch('/api/fetch', {
+      method: 'POST', headers: {'Authorization': `Bearer ${_token}`}
+    })).json();
+    if (result.ok) {
+      btn.textContent = '✅ 采集完成';
+      setTimeout(() => { btn.textContent = '⚡ 立即采集'; }, 2000);
+      loadData();
+    } else {
+      btn.textContent = '❌ 采集失败';
+      alert('采集失败：' + (result.error || '未知错误'));
+      setTimeout(() => { btn.textContent = '⚡ 立即采集'; }, 3000);
+    }
+  } catch (e) {
+    btn.textContent = '❌ 请求异常';
+    setTimeout(() => { btn.textContent = '⚡ 立即采集'; }, 3000);
+  }
+  btn.disabled = false;
+}
+
+// ============ 管理员功能 ============
+async function loadAdminData() {
+  if (!_user || !_user.is_admin) return;
+  
+  // 加载用户列表
+  const users = await (await fetch('/api/admin/users', {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  })).json();
+  
+  const tbody = document.getElementById('userTableBody');
+  tbody.innerHTML = '';
+  users.users.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${u.id}</td>
+      <td>${u.username}</td>
+      <td>${u.is_admin ? '管理员' : '普通用户'}</td>
+      <td>${u.created_at}</td>
+      <td>
+        <button class="btn btn-sm" onclick="resetPassword(${u.id},'${u.username}')">重置密码</button>
+        ${u.id !== _user.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${u.username}')">删除</button>` : ''}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  // 加载所有产品
+  const products = await (await fetch('/api/admin/products', {
+    headers: { 'Authorization': `Bearer ${_token}` }
+  })).json();
+  
+  const tbody2 = document.getElementById('allProductsTableBody');
+  tbody2.innerHTML = '';
+  products.products.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.username}</td>
+      <td>${p.name}</td>
+      <td>report${p.report_type}.php</td>
+      <td>${(p.channels||[]).join(', ')}</td>
+      <td>
+        <button class="btn btn-sm" onclick="viewUserData('${p.username}')">查看数据</button>
+      </td>
+    `;
+    tbody2.appendChild(tr);
+  });
+}
+
+function showAddUser() {
+  _editingUserId = null;
+  document.getElementById('userModalTitle').textContent = '添加用户';
+  document.getElementById('uUsername').value = '';
+  document.getElementById('uPassword').value = '';
+  document.getElementById('uIsAdmin').checked = false;
+  document.getElementById('userModalError').style.display = 'none';
+  document.getElementById('userModal').classList.remove('hidden');
+}
+
+function closeUserModal() {
+  document.getElementById('userModal').classList.add('hidden');
+}
+
+async function saveUser() {
+  const username = document.getElementById('uUsername').value.trim();
+  const password = document.getElementById('uPassword').value;
+  const isAdmin = document.getElementById('uIsAdmin').checked ? 1 : 0;
+  
+  if (!username || !password) {
+    document.getElementById('userModalError').textContent = '请填写用户名和密码';
+    document.getElementById('userModalError').style.display = 'block';
+    return;
+  }
+  
+  const result = await (await fetch('/api/register', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}`},
+    body: JSON.stringify({username, password, is_admin: isAdmin}),
+  })).json();
+  
+  if (result.ok) {
+    closeUserModal();
+    loadAdminData();
+  } else {
+    document.getElementById('userModalError').textContent = result.error || '创建失败';
+    document.getElementById('userModalError').style.display = 'block';
+  }
+}
+
+async function resetPassword(userId, username) {
+  const newPassword = prompt(`请输入 ${username} 的新密码：`, '');
+  if (!newPassword) return;
+  
+  const result = await (await fetch('/api/admin/reset_password', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}`},
+    body: JSON.stringify({user_id: userId, new_password: newPassword}),
+  })).json();
+  
+  if (result.ok) {
+    alert('密码已重置 ✅');
+  } else {
+    alert('重置失败：' + (result.error || ''));
+  }
+}
+
+async function deleteUser(userId, username) {
+  if (!confirm(`确定删除用户 ${username}？\n删除后该用户的所有产品和采集数据将一并删除！`)) return;
+  
+  const result = await (await fetch('/api/admin/delete_user', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}`},
+    body: JSON.stringify({user_id: userId}),
+  })).json();
+  
+  if (result.ok) {
+    alert('用户已删除 ✅');
+    loadAdminData();
+  } else {
+    alert('删除失败：' + (result.error || ''));
+  }
+}
+
+function viewUserData(username) {
+  // 切换到数据页并筛选该用户的数据（预留）
+  alert(`查看 ${username} 的数据（功能开发中）`);
+}
+</script>
+</body>
+</html>

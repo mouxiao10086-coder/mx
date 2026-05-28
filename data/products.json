@@ -1,0 +1,14 @@
+{
+  "admin": [
+    {
+      "name": "35X",
+      "report_type": "zhugan",
+      "pid": "14",
+      "token": "b6cbcf60584d184fc7e0c3eb04ade10c",
+      "channels": [
+        "527002-FB-PWA-13"
+      ],
+      "timezone": "Etc/GMT+3"
+    }
+  ]
+}

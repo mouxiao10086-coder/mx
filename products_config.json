@@ -1,0 +1,38 @@
+{
+  "products": [
+    {
+      "name": "G45",
+      "account": "15011zcsc",
+      "report_type": "niunai",
+      "id": 16,
+      "token": "218cbfb86ecd23850ec0dc676f5536eb",
+      "channels": [
+        "151102-FB-PWA-24"
+      ],
+      "timezone": "Etc/GMT+3"
+    },
+    {
+      "name": "82B",
+      "account": "15009zcsc",
+      "report_type": "niunai",
+      "id": 15,
+      "token": "c693d4c6a4f6d5cdd227bba8fd299fb7",
+      "channels": [
+        "159002-FB-PWA-20"
+      ],
+      "timezone": "Etc/GMT+3"
+    },
+    {
+      "name": "35X",
+      "account": "shuju527",
+      "report_type": "zhugan",
+      "id": 14,
+      "token": "b6cbcf60584d184fc7e0c3eb04ade10c",
+      "channels": [
+        "527002-FB-PWA-13"
+      ],
+      "timezone": "Etc/GMT+3"
+    }
+  ],
+  "retention_days": 1
+}
