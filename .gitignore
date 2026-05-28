@@ -1,0 +1,7 @@
+*.bak*
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+/甲方后台定时查询工具/
+/dist/

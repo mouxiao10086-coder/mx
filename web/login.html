@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 甲方后台定时查询工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 40px 36px;
+            width: 380px;
+            max-width: 90vw;
+        }
+        .login-card h1 {
+            font-size: 1.5rem;
+            color: #1d1d1f;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+        .login-card .subtitle {
+            font-size: 0.85rem;
+            color: #86868b;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .form-group input:focus {
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            margin-top: 8px;
+        }
+        .btn-login:hover { opacity: 0.9; }
+        .btn-login:active { opacity: 0.8; }
+        .btn-login.loading { opacity: 0.7; cursor: wait; }
+        .switch-mode {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #86868b;
+            margin-top: 18px;
+        }
+        .switch-mode a {
+            color: #007aff;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .switch-mode a:hover { text-decoration: underline; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 200;
+            animation: fadeIn 0.3s;
+        }
+        .toast-err { background: #ff3b30; }
+        .toast-ok { background: #34c759; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>📊 甲方后台定时查询</h1>
+        <div class="subtitle">定时查询工具</div>
+
+        <!-- 登录表单 -->
+        <form id="loginForm" onsubmit="doLogin(event)">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="username" placeholder="请输入用户名" autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn-login" id="btnLogin">登 录</button>
+        </form>
+
+        <!-- 注册表单 -->
+        <form id="registerForm" class="hidden" onsubmit="doRegister(event)">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="regUsername" placeholder="请输入用户名" autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="regPassword" placeholder="至少4位" autocomplete="new-password" required minlength="4">
+            </div>
+            <button type="submit" class="btn-login" id="btnRegister">注 册</button>
+        </form>
+
+        <div class="switch-mode">
+            <span id="switchToRegister">
+                没有账号？<a onclick="showRegister()">立即注册</a>
+            </span>
+            <span id="switchToLogin" class="hidden">
+                已有账号？<a onclick="showLogin()">返回登录</a>
+            </span>
+        </div>
+    </div>
+
+    <script>
+        function showRegister() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('switchToRegister').classList.add('hidden');
+            document.getElementById('switchToLogin').classList.remove('hidden');
+        }
+        function showLogin() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('switchToLogin').classList.add('hidden');
+            document.getElementById('switchToRegister').classList.remove('hidden');
+        }
+
+        async function doLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnLogin');
+            btn.classList.add('loading'); btn.disabled = true;
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const d = await res.json();
+                if (d.ok) {
+                    localStorage.setItem('token', d.token);
+                    localStorage.setItem('user', JSON.stringify(d.user));
+                    window.location.href = '/';
+                } else {
+                    toast(d.error || '登录失败', 'err');
+                }
+            } catch(err) {
+                toast('网络错误', 'err');
+            }
+            btn.classList.remove('loading'); btn.disabled = false;
+        }
+
+        async function doRegister(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnRegister');
+            btn.classList.add('loading'); btn.disabled = true;
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            if (password.length < 4) {
+                toast('密码至少4位', 'err');
+                btn.classList.remove('loading'); btn.disabled = false;
+                return;
+            }
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const d = await res.json();
+                if (d.ok) {
+                    toast('注册成功，请登录', 'ok');
+                    showLogin();
+                    document.getElementById('username').value = username;
+                } else {
+                    toast(d.error || '注册失败', 'err');
+                }
+            } catch(err) {
+                toast('网络错误', 'err');
+            }
+            btn.classList.remove('loading'); btn.disabled = false;
+        }
+
+        function toast(msg, type) {
+            const old = document.querySelector('.toast');
+            if (old) old.remove();
+            const el = document.createElement('div');
+            el.className = 'toast ' + (type === 'ok' ? 'toast-ok' : 'toast-err');
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
