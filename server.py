@@ -420,6 +420,25 @@ def api_get_data():
     return jsonify(result)
 
 
+@app.route("/api/dashboard")
+def api_dashboard():
+    """合并接口：一次请求返回日期列表+最新数据+产品列表，减少网络往返"""
+    username, err = require_auth()
+    if err:
+        return err
+    dates = get_user_dates(username)
+    date = request.args.get("date", dates[0] if dates else "")
+    data_result = get_user_data(username, date) if date else {"date": "", "data": {}}
+    products = load_user_products(username)
+    return jsonify(
+        ok=True,
+        dates=dates,
+        date=date,
+        data=data_result.get("data", {}),
+        products=products,
+    )
+
+
 # ============ 测试采集 ============
 def test_product(product):
     report_type = product.get("report_type", "niunai")
@@ -541,6 +560,7 @@ def api_save_cron():
         tasks.append({"username": username, "cron_expr": cron_expr, "enabled": True})
     all_cron["tasks"] = tasks
     save_cron(all_cron)
+    schedule_user_cron(username, cron_expr)
     return jsonify(ok=True)
 
 
@@ -554,6 +574,7 @@ def api_delete_cron():
     tasks = [t for t in tasks if t.get("username") != username]
     all_cron["tasks"] = tasks
     save_cron(all_cron)
+    cancel_user_cron(username)
     return jsonify(ok=True)
 
 
@@ -598,7 +619,66 @@ def update_system_cron():
         pass  # crontab 更新失败不影响主流程
 
 
-# ============ 内置 cron 调度器（跨平台，不依赖系统 crontab）============
+# ============ 独立 Timer 调度器（每用户一个 Timer，精确触发）============
+USER_TIMERS = {}  # username -> threading.Timer
+TIMER_LOCK = threading.Lock()
+
+
+def next_cron_minute(cron_expr, from_dt=None):
+    """计算 cron 表达式下一次匹配的时间（精度到分钟），从 from_dt 之后开始找"""
+    if from_dt is None:
+        from_dt = datetime.now(BEIJING_TZ)
+    # 从下一秒开始找，避免重复触发当前分钟
+    dt = from_dt.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    # 最多往后找 7 天，防止死循环
+    for _ in range(7 * 24 * 60):
+        if cron_matches(cron_expr, dt):
+            return dt
+        dt += timedelta(minutes=1)
+    return None
+
+
+def schedule_user_cron(username, cron_expr):
+    """为该用户创建/更新 Timer，在下次 cron 匹配时触发"""
+    cancel_user_cron(username)
+    next_time = next_cron_minute(cron_expr)
+    if not next_time:
+        return
+    delay = (next_time - datetime.now(BEIJING_TZ)).total_seconds()
+    if delay <= 0:
+        delay = 1
+
+    def trigger():
+        try:
+            fetch_for_user(username)
+        except Exception:
+            pass
+        # 重新调度下一次
+        schedule_user_cron(username, cron_expr)
+
+    with TIMER_LOCK:
+        t = threading.Timer(delay, trigger)
+        t.daemon = True
+        t.start()
+        USER_TIMERS[username] = t
+
+
+def cancel_user_cron(username):
+    """取消该用户的 Timer"""
+    with TIMER_LOCK:
+        t = USER_TIMERS.pop(username, None)
+        if t:
+            t.cancel()
+
+
+def start_all_cron_timers():
+    """启动时加载所有用户的 cron 并启动 Timer"""
+    all_cron = load_cron()
+    for task in all_cron.get("tasks", []):
+        if task.get("enabled") and task.get("cron_expr"):
+            schedule_user_cron(task["username"], task["cron_expr"])
+
+
 def parse_cron_field(field, min_val, max_val):
     """解析单个 cron 字段为允许值集合。如 '0-9,18-23' -> {0,1,...,9,18,...,23}，'*' -> 全集合"""
     result = set()
@@ -643,24 +723,23 @@ def cron_matches(cron_expr, dt):
 
 
 def cron_runner():
-    """后台线程：每分钟整点扫描所有用户 cron，到期自动触发采集"""
+    """后台线程：每秒检查，分钟变化时扫描 cron 并触发（绝无重复）"""
+    last_minute = -1
     while True:
         try:
-            all_cron = load_cron()
             now = datetime.now(BEIJING_TZ)
-            for task in all_cron.get("tasks", []):
-                if task.get("enabled") and cron_matches(task["cron_expr"], now):
-                    try:
-                        fetch_for_user(task["username"])
-                    except Exception:
-                        pass
+            if now.minute != last_minute:
+                last_minute = now.minute
+                all_cron = load_cron()
+                for task in all_cron.get("tasks", []):
+                    if task.get("enabled") and cron_matches(task["cron_expr"], now):
+                        try:
+                            fetch_for_user(task["username"])
+                        except Exception:
+                            pass
         except Exception:
             pass
-        # 计算到下一个分钟边界的秒数，精确对齐
-        now = datetime.now(BEIJING_TZ)
-        next_min = (now + timedelta(minutes=1)).replace(second=0, microsecond=0)
-        wait = max(1, (next_min - now).total_seconds())
-        time.sleep(wait)
+        time.sleep(1)
 
 
 # ============ 管理员接口 ============
@@ -761,9 +840,8 @@ curl -s -X POST "http://localhost:8991/api/fetch-now" \\
         print(f"已创建采集脚本: {script_path}")
 
     print(f"服务器启动: http://0.0.0.0:8991")
-    # 启动内置 cron 调度器（后台线程，跨平台）
-    t = threading.Thread(target=cron_runner, daemon=True)
-    t.start()
+    # 启动所有用户的独立 cron Timer
+    start_all_cron_timers()
 
     # 优先使用 waitress（多线程生产服务器），回退到 Flask 开发服务器
     try:

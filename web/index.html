@@ -293,7 +293,8 @@
 
         // ============ 数据页 ============
         function loadData() {
-            api({ url: '/api/dates' }).then(res => {
+            api({ url: '/api/dashboard' }).then(res => {
+                if (!res.ok) return;
                 const dates = res.dates || [];
                 const sel = document.getElementById('dateSelect');
                 const prev = sel.value;
@@ -306,26 +307,19 @@
                 if (prev && dates.includes(prev)) sel.value = prev;
                 else if (dates.length) sel.value = dates[0];
 
-                // 加载数据
-                const date = sel.value;
-                if (!date) { window._data = null; renderData(); return; }
-                api({ url: `/api/data?date=${date}` }).then(json => {
-                    window._data = json.data;
-                    // 加载产品列表（用于下拉）
-                    api({ url: '/api/products' }).then(prodRes => {
-                        _products = prodRes.products || prodRes;
-                        const pSel = document.getElementById('productSelect');
-                        const prevP = pSel.value;
-                        pSel.innerHTML = '<option value="all">全部</option>';
-                        (_products || []).forEach(p => {
-                            const opt = document.createElement('option');
-                            opt.value = p.name; opt.textContent = p.name;
-                            pSel.appendChild(opt);
-                        });
-                        if (prevP && (prodRes.products||prodRes).some(p => p.name === prevP)) pSel.value = prevP;
-                        renderData();
-                    });
+                window._data = res.data || {};
+                _products = res.products || [];
+
+                const pSel = document.getElementById('productSelect');
+                const prevP = pSel.value;
+                pSel.innerHTML = '<option value="all">全部</option>';
+                _products.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name; opt.textContent = p.name;
+                    pSel.appendChild(opt);
                 });
+                if (prevP && _products.some(p => p.name === prevP)) pSel.value = prevP;
+                renderData();
             });
         }
 
