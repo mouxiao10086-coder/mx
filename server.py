@@ -439,6 +439,24 @@ def api_dashboard():
     )
 
 
+@app.route("/api/data/<product_name>/clear", methods=["DELETE"])
+def api_clear_product_data(product_name):
+    """清除当前用户某个产品今天的全部数据"""
+    username, err = require_auth()
+    if err:
+        return err
+    date_str = datetime.now(BEIJING_TZ).strftime("%Y-%m-%d")
+    data_file = user_daily_dir(username) / f"{date_str}.json"
+    if data_file.exists():
+        with open(data_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if product_name in data:
+            del data[product_name]
+            with open(data_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+    return jsonify(ok=True)
+
+
 # ============ 测试采集 ============
 def test_product(product):
     report_type = product.get("report_type", "niunai")
