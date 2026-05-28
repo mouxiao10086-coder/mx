@@ -764,4 +764,12 @@ curl -s -X POST "http://localhost:8991/api/fetch-now" \\
     # 启动内置 cron 调度器（后台线程，跨平台）
     t = threading.Thread(target=cron_runner, daemon=True)
     t.start()
-    app.run(host="0.0.0.0", port=8991, debug=False)
+
+    # 优先使用 waitress（多线程生产服务器），回退到 Flask 开发服务器
+    try:
+        from waitress import serve
+        print("使用 waitress 多线程服务器")
+        serve(app, host="0.0.0.0", port=8991, threads=4)
+    except ImportError:
+        print("未安装 waitress，使用 Flask 开发服务器（单线程，仅适合本地调试）")
+        app.run(host="0.0.0.0", port=8991, debug=False)
