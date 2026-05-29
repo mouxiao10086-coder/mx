@@ -321,6 +321,7 @@
 
                 window._data = res.data || {};
                 _products = res.products || [];
+                window._fetchErrors = res.fetch_errors || [];
 
                 const pSel = document.getElementById('productSelect');
                 const prevP = pSel.value;
@@ -338,7 +339,17 @@
         function renderData() {
             const data = window._data;
             const content = document.getElementById('dataContent');
+            if (!data && (!_products || !_products.length)) {
+                content.innerHTML = '<div class="empty" style="padding:60px;text-align:center;color:#86868b"><p style="font-size:40px;margin:0">📦</p><p style="margin:12px 0">还没添加产品</p><button class="btn btn-primary" onclick="document.getElementById(\'tabSettings\').click()">去添加产品 →</button></div>';
+                return;
+            }
             if (!data) { content.innerHTML = '<div class="empty">暂无数据</div>'; return; }
+
+            // 错误横幅
+            if (window._fetchErrors && window._fetchErrors.length) {
+                var errHtml = window._fetchErrors.map(function(e){return esc(e.product)+': '+esc(e.error)}).join('，');
+                content.innerHTML = '<div class="error-banner" style="background:#fff0f0;color:#c00;padding:8px 16px;border-radius:6px;margin-bottom:12px;font-size:13px">⚠️ 采集失败：' + errHtml + '</div>';
+            }
 
             const filter = document.getElementById('productSelect').value;
             const products = filter === 'all' ? (_products||[]).map(p => p.name) : [filter];
@@ -367,7 +378,7 @@
                 var channels = [...new Set(records.map(r => r.channel))].filter(Boolean);
                 var channelStr = channels.length ? channels.join(' / ') : '';
                 let html = `<div class="product-section">
-                    <div class="product-header"><span>${esc(name)}${channelStr?' · '+esc(channelStr):''}</span><span style="display:flex;align-items:center;gap:10px"><button class="btn btn-sm btn-danger" onclick="clearProductData('${esc(name)}')" style="font-size:11px">🗑 清除</button><span style="font-size:12px;color:#86868b">共 ${total} 条</span></span></div>
+                    <div class="product-header"><span>${esc(name)}${channelStr?' · '+esc(channelStr):''}</span><span style="display:flex;align-items:center;gap:10px"><button class="btn btn-sm" onclick="fetchOne('${esc(name)}')" title="立即采集" style="font-size:11px">⚡</button><button class="btn btn-sm btn-danger" onclick="clearProductData('${esc(name)}')" style="font-size:11px">🗑 清除</button><span style="font-size:12px;color:#86868b">共 ${total} 条</span></span></div>
                     <table>
                         <thead><tr><th>时间</th><th class="num">访问</th><th class="num">注册</th><th class="num">首充</th></tr></thead>
                         <tbody>`;
@@ -441,7 +452,13 @@
             api({ url: '/api/cron' }).then(r => {
                 var el = document.getElementById('cronStatus');
                 if (r.active) {
-                    el.innerHTML = '<span class="status-dot on"></span><strong>定时采集已启用</strong> | ' + (r.config.cron_expr || '');
+                    var cfg = r.config || {};
+                    var extra = [];
+                    if (cfg.last_run) {
+                        var statusIcon = cfg.last_status === 'error' ? '🔴' : '✅';
+                        extra.push('上次: ' + cfg.last_run + ' ' + statusIcon);
+                    }
+                    el.innerHTML = '<span class="status-dot on"></span><strong>定时采集已启用</strong> | ' + (cfg.cron_expr || '') + (extra.length ? ' | ' + extra.join(' | ') : '');
                 } else {
                     el.innerHTML = '<span class="status-dot off"></span><strong>定时采集：未启用</strong>';
                 }
@@ -708,6 +725,14 @@
             if (!confirm(`确定清除 ${name} 今天的所有数据？不可恢复！`)) return;
             api({ url: '/api/data/' + encodeURIComponent(name) + '/clear', method: 'DELETE' })
                 .then(d => { if (d.ok) loadData(); else alert(d.error || '清除失败'); });
+        }
+
+        function fetchOne(name) {
+            var btn = event.target; btn.disabled = true; btn.textContent = '...';
+            api({ url: '/api/fetch-one/' + encodeURIComponent(name), method: 'POST' })
+                .then(function(d) {
+                    if (d.ok) loadData(); else alert(d.error || '采集失败');
+                }).finally(function(){ btn.disabled = false; btn.textContent = '⚡'; });
         }
 
         function manualFetch() {
