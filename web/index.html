@@ -517,7 +517,7 @@
                 } else {
                     el.innerHTML = '<span class="status-dot off"></span><strong>定时采集：未启用</strong>';
                 }
-                buildCron();
+                buildCron(cfg.cron_expr);
             });
 
             // 管理员：显示用户管理入口
@@ -707,7 +707,35 @@
         }
 
         // ============ Cron 构建器 ============
-        function buildCron() {
+        function buildCron(savedExpr) {
+            // 还原已保存的 cron 表达式
+            if (savedExpr) {
+                var parts = savedExpr.trim().split(/\s+/);
+                if (parts.length >= 3) {
+                    var minPart = parts[0], hourPart = parts[1], dayPart = parts[2];
+                    if (minPart.includes('*/')) {
+                        document.getElementById('cronFreq').value = minPart.replace('*/','');
+                        document.getElementById('cronFixedMin').value = '50';
+                    } else {
+                        document.getElementById('cronFreq').value = 'fixed';
+                        document.getElementById('cronFixedMin').value = minPart;
+                    }
+                    if (hourPart === '*') document.getElementById('cronPeriod').value = 'all';
+                    else if (hourPart === '0-9,18-23') document.getElementById('cronPeriod').value = 'work';
+                    else if (hourPart.match(/^\d+-\d+$/)) {
+                        document.getElementById('cronPeriod').value = 'range';
+                        var range = hourPart.split('-');
+                        document.getElementById('cronHourStart').value = range[0];
+                        document.getElementById('cronHourEnd').value = range[1];
+                    } else {
+                        document.getElementById('cronPeriod').value = 'custom';
+                        document.getElementById('cronCustomHour').value = hourPart;
+                    }
+                    if (dayPart === '*') document.getElementById('cronDay').value = '*';
+                    else if (dayPart === '1-5') document.getElementById('cronDay').value = '1-5';
+                    else if (dayPart === '0,6') document.getElementById('cronDay').value = '0,6';
+                }
+            }
             var freq = document.getElementById('cronFreq').value;
             var period = document.getElementById('cronPeriod').value;
             var fixedMin = document.getElementById('cronFixedMin').value || '50';
