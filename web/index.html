@@ -592,7 +592,11 @@
 
         function testProduct() {
             const p = getProductFromForm();
-            if (!p.pid || !p.token) { alert('请至少填写 ID 和 Token'); return; }
+            if (p.report_type === 'ads27b') {
+                if (!p.merchant_id || !p.channels.length) { alert('请填写链接和渠道'); return; }
+            } else {
+                if (!p.pid || !p.token) { alert('请至少填写 ID 和 Token'); return; }
+            }
             document.getElementById('testResult').innerHTML = '<div class="test-result test-pending">⏳ 测试中...</div>';
             api({ url: '/api/test-connection', method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(p) })
                 .then(d => {
