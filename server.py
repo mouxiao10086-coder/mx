@@ -26,9 +26,10 @@ USERS_FILE = DEFAULT_ROOT / "users.json"
 CRON_FILE = DEFAULT_ROOT / "cron.json"
 
 BEIJING_TZ = timezone(timedelta(hours=8))
-CRON_SECRET = "cron-secret-2026"
+CRON_SECRET = os.environ.get("FETCH_CRON_TOKEN", "cron-secret-2026")
 
 TOKENS = {}  # token -> {username, exp}
+TOKENS_LOCK = threading.Lock()
 app = Flask(__name__, static_folder="web", static_url_path="/static")
 BASE_URL = "http://16.163.114.99:8990"
 
@@ -36,8 +37,11 @@ BASE_URL = "http://16.163.114.99:8990"
 # ============ 用户管理 ============
 def load_users():
     if USERS_FILE.exists():
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(USERS_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
     return {"users": [], "next_id": 1}
 
 
@@ -69,11 +73,13 @@ def verify_token():
     if not auth.startswith("Bearer "):
         return None
     token = auth[7:]
-    info = TOKENS.get(token)
+    with TOKENS_LOCK:
+        info = TOKENS.get(token)
     if not info:
         return None
     if info["exp"] < datetime.now(BEIJING_TZ).timestamp():
-        TOKENS.pop(token, None)
+        with TOKENS_LOCK:
+            TOKENS.pop(token, None)
         return None
     return info["username"]
 
@@ -90,8 +96,11 @@ def load_user_products(username):
     path = user_config_path(username)
     if not path.exists():
         return []
-    with open(path, "r") as f:
-        cfg = json.load(f)
+    try:
+        with open(path, "r") as f:
+            cfg = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
     return cfg.get("products", [])
 
 
@@ -121,8 +130,11 @@ def get_user_data(username, date=None):
         date = dates[0]
     data_file = user_daily_dir(username) / f"{date}.json"
     if data_file.exists():
-        with open(data_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(data_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {"date": date, "data": {}}
         return {"date": date, "data": data}
     return {"date": date, "data": {}}
 
@@ -211,8 +223,11 @@ def save_daily_record(username, product_name, records):
 
     existing_data = {}
     if data_file.exists():
-        with open(data_file, "r", encoding="utf-8") as f:
-            existing_data = json.load(f)
+        try:
+            with open(data_file, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            existing_data = {}
 
     if product_name not in existing_data:
         existing_data[product_name] = []
@@ -265,8 +280,9 @@ def api_register():
     save_users(users)
 
     token = secrets.token_hex(32)
-    TOKENS[token] = {
-        "username": username,
+    with TOKENS_LOCK:
+        TOKENS[token] = {
+            "username": username,
         "exp": datetime.now(BEIJING_TZ).timestamp() + 86400 * 7,
     }
     return jsonify(ok=True, token=token, user={"username": username, "is_admin": username == "admin"})
@@ -289,8 +305,9 @@ def api_login():
         return jsonify(ok=False, error="密码错误")
 
     token = secrets.token_hex(32)
-    TOKENS[token] = {
-        "username": username,
+    with TOKENS_LOCK:
+        TOKENS[token] = {
+            "username": username,
         "exp": datetime.now(BEIJING_TZ).timestamp() + 86400 * 7,
     }
     return jsonify(ok=True, token=token, user={
@@ -683,8 +700,11 @@ def api_delete_cron():
 
 def load_cron():
     if CRON_FILE.exists():
-        with open(CRON_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(CRON_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
     return {"tasks": []}
 
 
