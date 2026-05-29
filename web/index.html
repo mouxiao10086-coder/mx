@@ -358,7 +358,9 @@
 
         // ============ 数据页 ============
         function loadData() {
-            api({ url: '/api/dashboard' }).then(res => {
+            var sel = document.getElementById('dateSelect');
+            var dateParam = sel.value ? '?date=' + encodeURIComponent(sel.value) : '';
+            api({ url: '/api/dashboard' + dateParam }).then(res => {
                 if (!res.ok) return;
                 const dates = res.dates || [];
                 const sel = document.getElementById('dateSelect');
