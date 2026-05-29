@@ -43,6 +43,16 @@ def token_cleaner():
             for k in expired:
                 TOKENS.pop(k, None)
 app = Flask(__name__, static_folder="web", static_url_path="/static")
+
+
+@app.after_request
+def no_cache(response):
+    """禁止浏览器和 CDN 缓存 HTML/JS，确保每次获取最新版本"""
+    if request.path.endswith('.html') or request.path == '/' or '/api/' in request.path:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 BASE_URL = "http://16.163.114.99:8990"
 
 

@@ -273,38 +273,26 @@
                 <div style="margin-bottom:24px">
                     <div style="font-weight:700;font-size:16px">v1.0.1 <span style="font-weight:400;font-size:13px;color:#86868b">2026-05-29</span></div>
                     <div style="border-top:1px solid #e5e5ea;margin:10px 0"></div>
-                    <div style="margin-bottom:6px;font-weight:600">新增</div>
-                    <ul style="margin:0 0 16px 0;padding-left:18px">
-                        <li>支持晴天产品（ads27b.com）数据采集</li>
-                        <li>单产品独立采集，点击 ⚡ 按钮只查询单个产品</li>
-                        <li>新用户空状态引导，无产品时提示添加</li>
-                        <li>定时采集失败时数据页顶部红色横幅提醒</li>
-                        <li>定时任务页显示「上次执行时间」和成功/失败状态</li>
-                    </ul>
-                    <div style="margin-bottom:6px;font-weight:600">优化</div>
-                    <ul style="margin:0 0 16px 0;padding-left:18px">
-                        <li>产品表单增加「普通 / 晴天」类型选择，减少配置错误</li>
-                        <li>3 个 API 合并为 1 个，页面加载速度提升 3 倍</li>
-                        <li>切换至 waitress 多线程服务器，支持 4 路并发</li>
-                        <li>独立 Timer 调度器，每用户精确触发，杜绝重复采集</li>
-                        <li>数据页增加产品数据清空按钮，便于重置</li>
-                    </ul>
-                    <div style="margin-bottom:6px;font-weight:600">修复</div>
                     <ul style="margin:0 0 0 0;padding-left:18px">
-                        <li>修复 Safari / Chrome 弹窗输入框定位错乱问题</li>
-                        <li>修复晴天产品「测试连接」按钮校验报错</li>
+                        <li>支持晴天产品（ads27b.com）接入</li>
+                        <li>产品独立采集，单产品一键刷新</li>
+                        <li>新用户空状态引导提示</li>
+                        <li>定时任务页显示状态和上次执行时间</li>
+                        <li>数据页产品数据一键清空</li>
+                        <li>用户管理独立页面</li>
+                        <li>导航栏改名：数据看板 / 任务配置 / 用户管理</li>
+                        <li>页面加载和服务器响应速度大幅提升</li>
+                        <li>定时调度更精准，不再重复采集</li>
+                        <li>修复多项使用细节和稳定性问题</li>
                     </ul>
                 </div>
                 <div style="margin-bottom:8px">
                     <div style="font-weight:700;font-size:16px">v1.0.0 <span style="font-weight:400;font-size:13px;color:#86868b">2026-05-28</span></div>
                     <div style="border-top:1px solid #e5e5ea;margin:10px 0"></div>
-                    <div style="margin-bottom:6px;font-weight:600">初始版本</div>
                     <ul style="margin:0 0 0 0;padding-left:18px">
-                        <li>多用户 Web 数据采集系统正式上线</li>
-                        <li>支持普通产品（niunai / zhugan）数据查询</li>
-                        <li>定时采集、产品管理、多用户数据隔离</li>
-                        <li>基于 Flask + waitress 构建，Cloudflare Tunnel 公网访问</li>
-                        <li>Mac Mini 本地部署，支持开机自启与自动恢复</li>
+                        <li>多用户数据采集系统正式上线</li>
+                        <li>支持普通产品数据查询与定时采集</li>
+                        <li>多用户数据隔离，各自独立管理</li>
                     </ul>
                 </div>
             </div>
