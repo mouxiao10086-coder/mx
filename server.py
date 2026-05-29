@@ -474,7 +474,6 @@ def api_dashboard():
         date=date,
         data=data_result.get("data", {}),
         products=products,
-        fetch_errors=load_fetch_errors(username).get("errors", []),
     )
 
 
@@ -606,13 +605,10 @@ def fetch_for_user(username):
         except Exception as e:
             errors.append({"product": name, "error": str(e)})
 
-    if errors:
-        save_fetch_errors(username, errors)
     return {
         "ok": True,
         "date": date_str,
         "summary": summary,
-        "errors": errors,
     }
 
 
@@ -626,29 +622,6 @@ def record_cron_log(username, cron_expr, status, detail=""):
             task["last_detail"] = detail[:100] if detail else ""
     save_cron(all_cron)
 
-
-def save_fetch_errors(username, errors):
-    """保存最近一次采集失败信息"""
-    f = user_daily_dir(username).with_name("last_errors.json")
-    with open(f, "w", encoding="utf-8") as fp:
-        json.dump({"time": datetime.now(BEIJING_TZ).strftime("%Y-%m-%d %H:%M:%S"), "errors": errors}, fp, ensure_ascii=False)
-
-
-def load_fetch_errors(username):
-    """读取最近一次采集失败信息"""
-    f = user_daily_dir(username).with_name("last_errors.json")
-    if f.exists():
-        with open(f, encoding="utf-8") as fp:
-            return json.load(fp)
-    return {"time": "", "errors": []}
-
-
-@app.route("/api/fetch-errors")
-def api_fetch_errors():
-    username, err = require_auth()
-    if err:
-        return err
-    return jsonify(load_fetch_errors(username))
 
 
 # ============ 定时任务 API ============

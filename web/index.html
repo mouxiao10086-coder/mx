@@ -374,7 +374,6 @@
 
                 window._data = (res.data && Object.keys(res.data).length) ? res.data : null;
                 _products = res.products || [];
-                window._fetchErrors = res.fetch_errors || [];
 
                 const pSel = document.getElementById('productSelect');
                 const prevP = pSel.value;
@@ -397,12 +396,6 @@
                 return;
             }
             if (!data) { content.innerHTML = '<div class="empty">暂无数据</div>'; return; }
-
-            // 错误横幅
-            if (window._fetchErrors && window._fetchErrors.length) {
-                var errHtml = window._fetchErrors.map(function(e){return esc(e.product)+': '+esc(e.error)}).join('，');
-                content.innerHTML = '<div class="error-banner" style="background:#fff0f0;color:#c00;padding:8px 16px;border-radius:6px;margin-bottom:12px;font-size:13px">⚠️ 采集失败：' + errHtml + '</div>';
-            }
 
             const filter = document.getElementById('productSelect').value;
             const products = filter === 'all' ? (_products||[]).map(p => p.name) : [filter];
