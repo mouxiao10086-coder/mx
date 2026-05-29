@@ -150,10 +150,44 @@ def parse_html(html):
 # ============ 采集逻辑 ============
 def fetch_report(product):
     report_type = product.get("report_type", "niunai")
-    pid = product.get("pid") or product.get("id")
-    token = product.get("token", "")
     channels = product.get("channels", [])
     tz = product.get("timezone", "Etc/GMT+3")
+
+    # 晴天产品 (ads27b): POST JSON 到 /realtime_search
+    if report_type == "ads27b":
+        merchant = product.get("merchant_id") or product.get("id", "")
+        results = []
+        for ch in channels:
+            try:
+                body = json.dumps({
+                    "keyword": ch,
+                    "timezone": tz,
+                    "realtime_today": True,
+                    "day_shift": 0,
+                    "force_refresh": False,
+                }).encode()
+                req = Request(
+                    f"https://ads27b.com/{merchant}/realtime_search",
+                    data=body,
+                    headers={"Content-Type": "application/json"},
+                )
+                with urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read().decode("utf-8", errors="replace"))
+                items = (data.get("result") or {}).get("items", [])
+                for item in items:
+                    results.append({
+                        "channel": item.get("keyword", ch),
+                        "visit": item.get("visit", 0),
+                        "register": item.get("direct_register", 0),
+                        "first_recharge": item.get("direct_first", 0),
+                    })
+            except (URLError, OSError, Exception):
+                continue
+        return results
+
+    # 普通产品 (niunai/zhugan): GET 带参数
+    pid = product.get("pid") or product.get("id")
+    token = product.get("token", "")
 
     base = f"{BASE_URL}/report{report_type}.php"
     params = f"id={pid}&token={token}&timezone={quote(tz)}"
@@ -341,6 +375,8 @@ def api_add_product():
         "channels": data.get("channels", []),
         "timezone": data.get("timezone", "Etc/GMT+3"),
     }
+    if data.get("merchant_id"):
+        new_product["merchant_id"] = data["merchant_id"]
     products.append(new_product)
     save_user_products(username, products)
     return jsonify(ok=True)
@@ -372,6 +408,8 @@ def api_update_product(name):
                 "channels": data.get("channels", p.get("channels", [])),
                 "timezone": data.get("timezone", p.get("timezone", "Etc/GMT+3")),
             }
+            if data.get("merchant_id") or p.get("merchant_id"):
+                products[i]["merchant_id"] = data.get("merchant_id", p.get("merchant_id", ""))
             save_user_products(username, products)
             return jsonify(ok=True)
     return jsonify(ok=False, error=f"产品 {name} 不存在")
@@ -460,10 +498,30 @@ def api_clear_product_data(product_name):
 # ============ 测试采集 ============
 def test_product(product):
     report_type = product.get("report_type", "niunai")
-    pid = product.get("pid") or product.get("id")
-    token = product.get("token", "")
     channels = product.get("channels", [])
     tz = product.get("timezone", "Etc/GMT+3")
+
+    if report_type == "ads27b":
+        merchant = product.get("merchant_id") or product.get("id", "")
+        ch = channels[0] if channels else ""
+        body = json.dumps({"keyword": ch, "timezone": tz, "realtime_today": True, "day_shift": 0, "force_refresh": False}).encode()
+        try:
+            url = f"https://ads27b.com/{merchant}/realtime_search"
+            req = Request(url, data=body, headers={"Content-Type": "application/json"})
+            with urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
+            items = (data.get("result") or {}).get("items", [])
+            rows = [{"channel": it.get("keyword",""), "visit": it.get("visit",0), "register": it.get("direct_register",0), "first_recharge": it.get("direct_first",0)} for it in items]
+            if not rows:
+                return {"ok": False, "error": "未获取到数据", "url": url}
+            return {"ok": True, "data": rows, "url": url}
+        except (URLError, OSError) as e:
+            return {"ok": False, "error": f"请求失败: {e}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    pid = product.get("pid") or product.get("id")
+    token = product.get("token", "")
 
     base = f"{BASE_URL}/report{report_type}.php"
     params = f"id={pid}&token={token}&timezone={quote(tz)}"

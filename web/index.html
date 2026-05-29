@@ -212,14 +212,26 @@
     <div id="productModal" class="modal-overlay hidden">
         <div class="modal">
             <h3 id="modalTitle">添加产品</h3>
-            <div class="form-row"><label>链接</label><input id="pUrl" placeholder="粘贴完整链接，自动解析" oninput="parseUrl()" onpaste="setTimeout(parseUrl,50)" style="flex:3" autofocus></div>
+            <div class="form-row" style="margin-bottom:6px">
+                <label>类型</label>
+                <select id="pType" onchange="onProductTypeChange()" style="flex:1">
+                    <option value="normal">📦 普通产品</option>
+                    <option value="ads27b">☀️ 晴天产品</option>
+                </select>
+            </div>
+            <div id="pAdsHint" class="hidden" style="font-size:12px;color:#866500;background:#fff8e1;padding:6px 10px;border-radius:6px;margin-bottom:8px">
+                ⚠️ 晴天产品链接格式为 <b>ads27b.com/商户号</b>，渠道需手动填写
+            </div>
+            <div class="form-row"><label>链接</label><input id="pUrl" placeholder="粘贴完整链接，自动解析" oninput="parseUrl()" onpaste="setTimeout(parseUrl,50)" style="flex:3"></div>
+            <div class="form-row" id="pChannelRow" style="display:none"><label>渠道</label><input id="pChannels" placeholder="渠道号，逗号分隔，如 1360202-FB-PWA-30" style="flex:3"></div>
             <div class="form-row"><label>名称</label><input id="pName" placeholder="产品标签，如 35X、G45" style="flex:2"><span id="pUrlParsed" style="font-size:11px;color:#888;margin-left:8px"></span></div>
-            <input type="hidden" id="pAccount" value="">
             <input type="hidden" id="pReportType" value="niunai">
             <input type="hidden" id="pId" value="">
             <input type="hidden" id="pToken" value="">
-            <input type="hidden" id="pChannels" value="">
+            <input type="hidden" id="pMerchantId" value="">
             <input type="hidden" id="pTimezone" value="Etc/GMT+3">
+            <input type="hidden" id="pAccount" value="">
+            <input type="hidden" id="pChannelsLegacy" value="">
             <div id="testResult"></div>
             <div class="btn-row">
                 <button class="btn" onclick="testProduct()">测试连接</button>
@@ -446,16 +458,26 @@
         }
 
         // ============ 产品管理 ============
+        function onProductTypeChange() {
+            var isAds = document.getElementById('pType').value === 'ads27b';
+            document.getElementById('pAdsHint').classList.toggle('hidden', !isAds);
+            document.getElementById('pChannelRow').style.display = isAds ? 'flex' : 'none';
+            document.getElementById('pUrlParsed').innerHTML = '';
+            if (isAds) { document.getElementById('pUrl').placeholder = '如 ads27b.com/13602'; }
+            else { document.getElementById('pUrl').placeholder = '粘贴完整链接，自动解析'; }
+        }
+
         function showAddProduct() {
             _editingName = null;
             document.getElementById('modalTitle').textContent = '添加产品';
-            ['pUrl','pName','pAccount','pId','pToken','pChannels'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('pType').value = 'normal';
+            ['pUrl','pName','pAccount','pId','pToken','pChannels','pChannelsLegacy','pMerchantId'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('pReportType').value = 'niunai';
             document.getElementById('pTimezone').value = 'Etc/GMT+3';
             document.getElementById('testResult').innerHTML = '';
             document.getElementById('pUrlParsed').innerHTML = '';
+            onProductTypeChange();
             document.getElementById('productModal').classList.remove('hidden');
-            setTimeout(function(){document.getElementById('pUrl').focus();},100);
         }
 
         function parseUrl() {
@@ -463,6 +485,18 @@
             const span = document.getElementById('pUrlParsed');
             span.innerHTML = '';
             if (!url) return;
+            // 晴天产品: ads27b.com/{商户号}
+            if (/ads27b\.com/i.test(url)) {
+                var m = url.match(/ads27b\.com\/(\d+)/i);
+                if (m) {
+                    document.getElementById('pType').value = 'ads27b';
+                    onProductTypeChange();
+                    document.getElementById('pMerchantId').value = m[1];
+                    span.innerHTML = '已解析 | 晴天 | 商户号: ' + m[1];
+                }
+                return;
+            }
+            // 普通产品
             try {
                 const u = new URL(url);
                 const file = u.pathname.split('/').pop() || '';
@@ -475,7 +509,7 @@
                 const token = u.searchParams.get('token');
                 if (token) document.getElementById('pToken').value = token;
                 const channels = u.searchParams.get('channels');
-                if (channels) document.getElementById('pChannels').value = channels;
+                if (channels) document.getElementById('pChannelsLegacy').value = channels;
                 const tz = u.searchParams.get('timezone');
                 if (tz) document.getElementById('pTimezone').value = decodeURIComponent(tz);
                 var parts = ['已解析'];
@@ -483,15 +517,14 @@
                 if (id) parts.push('ID: ' + id);
                 if (channels) parts.push('渠道: ' + channels);
                 span.innerHTML = parts.join(' | ');
-                if (!document.getElementById('pName').value) {
-                    document.getElementById('pName').focus();
-                }
             } catch(e) {}
         }
 
         function editProduct(p) {
             _editingName = p.name;
+            var isAds = p.report_type === 'ads27b';
             document.getElementById('modalTitle').textContent = '编辑产品 - ' + p.name;
+            document.getElementById('pType').value = isAds ? 'ads27b' : 'normal';
             document.getElementById('pUrl').value = '';
             document.getElementById('pName').value = p.name;
             document.getElementById('pAccount').value = p.account || '';
@@ -499,9 +532,12 @@
             document.getElementById('pId').value = p.id || '';
             document.getElementById('pToken').value = p.token || '';
             document.getElementById('pChannels').value = (p.channels||[]).join(',');
+            document.getElementById('pChannelsLegacy').value = (p.channels||[]).join(',');
+            document.getElementById('pMerchantId').value = p.merchant_id || '';
             document.getElementById('pTimezone').value = p.timezone || 'Etc/GMT+3';
             document.getElementById('testResult').innerHTML = '';
             document.getElementById('pUrlParsed').innerHTML = '';
+            onProductTypeChange();
             document.getElementById('productModal').classList.remove('hidden');
         }
 
@@ -510,20 +546,34 @@
         }
 
         function getProductFromForm() {
-            return {
+            var isAds = document.getElementById('pType').value === 'ads27b';
+            var channels = isAds
+                ? document.getElementById('pChannels').value.split(',').map(s=>s.trim()).filter(Boolean)
+                : document.getElementById('pChannelsLegacy').value.split(',').map(s=>s.trim()).filter(Boolean);
+            var product = {
                 name: document.getElementById('pName').value.trim(),
                 account: document.getElementById('pAccount').value.trim(),
-                report_type: document.getElementById('pReportType').value,
-                pid: parseInt(document.getElementById('pId').value) || 0,
-                token: document.getElementById('pToken').value.trim(),
-                channels: document.getElementById('pChannels').value.split(',').map(s=>s.trim()).filter(Boolean),
+                report_type: isAds ? 'ads27b' : document.getElementById('pReportType').value,
+                channels: channels,
                 timezone: document.getElementById('pTimezone').value.trim() || 'Etc/GMT+3',
             };
+            if (isAds) {
+                product.merchant_id = document.getElementById('pMerchantId').value.trim();
+            } else {
+                product.pid = parseInt(document.getElementById('pId').value) || 0;
+                product.token = document.getElementById('pToken').value.trim();
+            }
+            return product;
         }
 
         function saveProduct() {
             const p = getProductFromForm();
-            if (!p.name || !p.pid || !p.token) { alert('请填写名称、ID 和 Token'); return; }
+            if (!p.name) { alert('请填写名称'); return; }
+            if (p.report_type === 'ads27b') {
+                if (!p.merchant_id || !p.channels.length) { alert('请填写链接和渠道'); return; }
+            } else {
+                if (!p.pid || !p.token) { alert('请填写链接（含 ID 和 Token）'); return; }
+            }
             const body = _editingName ? { old_name: _editingName, product: p } : p;
             const url = _editingName ? '/api/products/' + encodeURIComponent(_editingName) : '/api/products';
             const method = _editingName ? 'PUT' : 'POST';
