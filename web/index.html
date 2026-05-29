@@ -369,7 +369,7 @@
                 if (prev && dates.includes(prev)) sel.value = prev;
                 else if (dates.length) sel.value = dates[0];
 
-                window._data = res.data || {};
+                window._data = (res.data && Object.keys(res.data).length) ? res.data : null;
                 _products = res.products || [];
                 window._fetchErrors = res.fetch_errors || [];
 
