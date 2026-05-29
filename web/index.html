@@ -117,7 +117,7 @@
                 <option value="all">全部</option>
             </select>
             <button class="btn" onclick="loadData()">🔄 刷新</button>
-            <button class="btn btn-primary" id="btnFetch" onclick="manualFetch()">⚡ 立即采集</button>
+            <button class="btn btn-primary" id="btnFetch" onclick="manualFetch()">🔄 全部采集</button>
         </div>
         <div id="dataContent"></div>
     </div>
@@ -428,7 +428,7 @@
                 var channels = [...new Set(records.map(r => r.channel))].filter(Boolean);
                 var channelStr = channels.length ? channels.join(' / ') : '';
                 let html = `<div class="product-section">
-                    <div class="product-header"><span>${esc(name)}${channelStr?' · '+esc(channelStr):''}</span><span style="display:flex;align-items:center;gap:10px"><button class="btn btn-sm" onclick="fetchOne('${esc(name)}')" title="立即采集" style="font-size:11px">⚡</button><button class="btn btn-sm btn-danger" onclick="clearProductData('${esc(name)}')" style="font-size:11px">🗑 清除</button><span style="font-size:12px;color:#86868b">共 ${total} 条</span></span></div>
+                    <div class="product-header"><span>${esc(name)}${channelStr?' · '+esc(channelStr):''}</span><span style="display:flex;align-items:center;gap:10px"><button class="btn btn-sm" onclick="fetchOne('${esc(name)}')" style="font-size:11px">⚡ 立即采集</button><button class="btn btn-sm btn-danger" onclick="clearProductData('${esc(name)}')" style="font-size:11px">🗑 清除</button><span style="font-size:12px;color:#86868b">共 ${total} 条</span></span></div>
                     <table>
                         <thead><tr><th>时间</th><th class="num">访问</th><th class="num">注册</th><th class="num">首充</th></tr></thead>
                         <tbody>`;
@@ -786,7 +786,7 @@
             api({ url: '/api/fetch-one/' + encodeURIComponent(name), method: 'POST' })
                 .then(function(d) {
                     if (d.ok) loadData(); else alert(d.error || '采集失败');
-                }).finally(function(){ btn.disabled = false; btn.textContent = '⚡'; });
+                }).finally(function(){ btn.disabled = false; btn.textContent = '⚡ 立即采集'; });
         }
 
         function manualFetch() {
