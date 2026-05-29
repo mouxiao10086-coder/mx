@@ -100,7 +100,8 @@
     <div class="header">
         <div class="header-left">
             <div class="tab active" onclick="switchTab('data')">📊 数据</div>
-            <div class="tab" onclick="switchTab('settings')">⚙️ 设置</div>
+            <div class="tab" onclick="switchTab('settings')">⚙️ 任务配置</div>
+            <div class="tab hidden" id="tabUsers" onclick="switchTab('users')">👥 用户管理</div>
         </div>
         <div class="header-right">
             <span id="userInfo"></span>
@@ -198,9 +199,12 @@
             </div>
         </div>
 
-        <!-- 管理员：用户管理 -->
-        <div class="section hidden" id="adminSection">
-            <div class="section-title">👥 用户管理（管理员）</div>
+    </div>
+
+    <!-- ===== 用户管理页 ===== -->
+    <div id="page-users" class="container hidden">
+        <div class="section">
+            <div class="section-title">👥 用户管理</div>
             <div class="section-body">
                 <div id="adminUserList"></div>
                 <div class="form-row" style="margin-top:12px">
@@ -352,8 +356,11 @@
             document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (isData && i===0) || (isSettings && i===1)));
             document.getElementById('page-data').classList.toggle('hidden', !isData);
             document.getElementById('page-settings').classList.toggle('hidden', !isSettings);
+            var isUsers = tab === 'users';
+            document.getElementById('page-users').classList.toggle('hidden', !isUsers);
             if (isSettings) loadSettings();
             if (isData) loadData();
+            if (isUsers) loadAdminUsers();
         }
 
         // ============ 数据页 ============
@@ -513,12 +520,11 @@
                 buildCron();
             });
 
-            // 管理员：加载用户列表
+            // 管理员：显示用户管理入口
             if (_isAdmin) {
-                document.getElementById('adminSection').classList.remove('hidden');
-                loadAdminUsers();
+                document.getElementById('tabUsers').classList.remove('hidden');
             } else {
-                document.getElementById('adminSection').classList.add('hidden');
+                document.getElementById('tabUsers').classList.add('hidden');
             }
         }
 
