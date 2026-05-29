@@ -31,6 +31,17 @@ CRON_SECRET = os.environ.get("FETCH_CRON_TOKEN", "cron-secret-2026")
 
 TOKENS = {}  # token -> {username, exp}
 TOKENS_LOCK = threading.Lock()
+
+
+def token_cleaner():
+    """后台线程：每小时清理过期 token"""
+    while True:
+        time.sleep(3600)
+        now = datetime.now(BEIJING_TZ).timestamp()
+        with TOKENS_LOCK:
+            expired = [k for k, v in TOKENS.items() if v.get("exp", 0) < now]
+            for k in expired:
+                TOKENS.pop(k, None)
 app = Flask(__name__, static_folder="web", static_url_path="/static")
 BASE_URL = "http://16.163.114.99:8990"
 
@@ -971,6 +982,8 @@ curl -s -X POST "http://localhost:8991/api/fetch-now" \\
     print(f"服务器启动: http://0.0.0.0:8991")
     # 启动所有用户的独立 cron Timer
     start_all_cron_timers()
+    # 启动 token 清理线程（每小时一次）
+    threading.Thread(target=token_cleaner, daemon=True).start()
 
     # 优先使用 waitress（多线程生产服务器），回退到 Flask 开发服务器
     try:

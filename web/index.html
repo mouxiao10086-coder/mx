@@ -513,7 +513,7 @@
                         var statusIcon = cfg.last_status === 'error' ? '🔴' : '✅';
                         extra.push('上次: ' + cfg.last_run + ' ' + statusIcon);
                     }
-                    el.innerHTML = '<span class="status-dot on"></span><strong>定时采集已启用</strong> | ' + (cfg.cron_expr || '') + (extra.length ? ' | ' + extra.join(' | ') : '');
+                    el.innerHTML = '<span class="status-dot on"></span><strong>定时采集已启用</strong> | ' + esc(cfg.cron_expr || '') + (extra.length ? ' | ' + extra.join(' | ') : '');
                 } else {
                     el.innerHTML = '<span class="status-dot off"></span><strong>定时采集：未启用</strong>';
                 }
