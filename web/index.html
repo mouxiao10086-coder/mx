@@ -390,7 +390,7 @@
             const data = window._data;
             const content = document.getElementById('dataContent');
             if (!data && (!_products || !_products.length)) {
-                content.innerHTML = '<div class="empty" style="padding:60px;text-align:center;color:#86868b"><p style="font-size:40px;margin:0">📦</p><p style="margin:12px 0">还没添加产品</p><button class="btn btn-primary" onclick="document.getElementById(\'tabSettings\').click()">去添加产品 →</button></div>';
+                content.innerHTML = '<div class="empty" style="padding:60px;text-align:center;color:#86868b"><p style="font-size:40px;margin:0">📦</p><p style="margin:12px 0">还没添加产品</p><button class="btn btn-primary" onclick="switchTab(\'settings\')">去添加产品 →</button></div>';
                 return;
             }
             if (!data) { content.innerHTML = '<div class="empty">暂无数据</div>'; return; }
