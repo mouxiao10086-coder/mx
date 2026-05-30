@@ -308,6 +308,7 @@
         let _products = [];
         let _editingName = null;
         let _isAdmin = false;
+        let _username = '';
         const PAGE_SIZE = 5;
         let _pages = {};
 
@@ -320,6 +321,7 @@
                 .then(d => {
                     if (!d.ok) { localStorage.removeItem('token'); window.location.href = '/login.html'; return; }
                     _isAdmin = !!(d.user && d.user.is_admin);
+                    _username = d.user.username;
                     document.getElementById('userInfo').textContent = d.user.username;
                     if (_isAdmin) {
                         document.getElementById('tabUsers').classList.remove('hidden');
@@ -799,6 +801,7 @@
                     }
                 });
                 sel.classList.remove('hidden');
+                sel.style.display = 'inline-block';
             });
         }
 
