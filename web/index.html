@@ -137,8 +137,9 @@
             <div class="section-title">📦 创建链接产品</div>
             <div class="section-body">
                 <div class="form-row">
-                    <input id="linkProdName" placeholder="产品名，如 82B主页" style="max-width:200px">
-                    <input id="linkTemplate" placeholder="粘贴完整链接，如 https://xxx.com?ch=...">
+                    <input id="linkProdName" placeholder="产品名，如 82B主页" style="max-width:180px">
+                    <input id="linkKeyword" placeholder="验证关键词，如 82B" style="max-width:140px">
+                    <input id="linkTemplate" placeholder="粘贴完整链接，如 https://xxx.com?ch=..." style="flex:2">
                     <button class="btn btn-primary" onclick="createLinkProduct()">创建</button>
                 </div>
                 <div id="linkCreateHint" style="font-size:12px;color:#86868b;margin-top:4px">自动识别域名部分，后续粘贴新域名即可替换</div>
@@ -153,6 +154,7 @@
                 </div>
                 <div class="form-row">
                     <button class="btn btn-primary" id="btnGenerate" onclick="generateLinks()" disabled>⚡ 生成链接</button>
+                    <button class="btn" id="btnValidate" onclick="validateLinks()" disabled>🔍 验证全部</button>
                     <select id="linkFilter" onchange="renderLinkList()" style="max-width:120px">
                         <option value="all">全部</option>
                         <option value="active">可用</option>
@@ -875,7 +877,7 @@
             var template = document.getElementById('linkTemplate').value.trim();
             if (!name || !template) { alert('请填写产品名和链接'); return; }
             api({ url: '/api/link-products', method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({name: name, template: template}) })
+                body: JSON.stringify({name: name, template: template, keyword: document.getElementById('linkKeyword').value.trim()}) })
                 .then(d => {
                     if (d.ok) {
                         document.getElementById('linkProdName').value = '';
@@ -894,6 +896,7 @@
                     esc(p.name) + ' <span style="font-size:10px;opacity:0.7" onclick="event.stopPropagation();deleteLinkProduct(\'' + escJs(p.name) + '\')">✕</span></button>';
             }).join('');
             document.getElementById('btnGenerate').disabled = !_linkProducts.length;
+            document.getElementById('btnValidate').disabled = !_currentLinkProduct || !(product && product.links.length);
         }
 
         function selectLinkProduct(name) {
@@ -953,13 +956,37 @@
                     '<span style="color:#86868b;min-width:24px">' + (i+1) + '</span>' +
                     '<input type="checkbox" ' + (isExpired ? 'checked' : '') + ' onchange="toggleLinkStatus(\'' + escJs(l.url) + '\', this.checked)" title="标记为已失效">' +
                     '<a href="' + esc(l.url) + '" target="_blank" style="flex:1;color:' + (isExpired ? '#c62828' : '#007aff') + ';word-break:break-all;text-decoration:none">' + esc(l.url) + '</a>' +
-                    '<button class="btn btn-sm" onclick="window.open(\'' + escJs(l.url) + '\')" title="新窗口打开">🔗</button>' +
+                    '<button class="btn btn-sm" onclick="validateOneLink(\'' + escJs(l.url) + '\', this)" style="font-size:11px">🔍</button>' +
                     '<span style="font-size:11px;color:' + (isExpired ? '#c62828' : '#34c759') + ';min-width:50px">' + (isExpired ? '❌ 失效' : '✅ 可用') + '</span>' +
                     '</div>';
             }).join('');
         }
 
-        function toggleLinkStatus(url, isExpired) {
+        function validateOneLink(url, btn) {
+            if (!_currentLinkProduct) return;
+            btn.disabled = true; btn.textContent = '...';
+            api({ url: '/api/link-products/' + encodeURIComponent(_currentLinkProduct) + '/validate',
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({url: url}) })
+                .then(d => {
+                    if (d.ok && d.results) {
+                        var r = d.results[0];
+                        _linkProducts = []; loadLinks(); // 刷新
+                    }
+                }).finally(function(){ btn.disabled = false; btn.textContent = '🔍'; });
+        }
+
+        function validateLinks() {
+            if (!_currentLinkProduct) return;
+            var btn = document.getElementById('btnValidate');
+            btn.disabled = true; btn.textContent = '验证中...';
+            api({ url: '/api/link-products/' + encodeURIComponent(_currentLinkProduct) + '/validate',
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) })
+                .then(d => {
+                    if (d.ok) loadLinks();
+                    else alert(d.error || '验证失败');
+                }).finally(function(){ btn.disabled = false; btn.textContent = '🔍 验证全部'; });
+        }
             if (!_currentLinkProduct) return;
             api({ url: '/api/link-products/' + encodeURIComponent(_currentLinkProduct) + '/status',
                 method: 'POST', headers: {'Content-Type':'application/json'},

@@ -1052,7 +1052,7 @@ def api_link_products_create():
     if not domain:
         return jsonify(ok=False, error="无法识别域名部分")
     template_full = template.replace(domain, "{DOMAIN}", 1)
-    products.append({"name": name, "template": template_full, "links": []})
+    products.append({"name": name, "template": template_full, "keyword": data.get("keyword", "").strip(), "links": []})
     save_link_products(username, products)
     return jsonify(ok=True, domain_detected=domain)
 
@@ -1135,6 +1135,41 @@ def api_link_products_status(name):
             save_link_products(username, products)
             return jsonify(ok=True)
     return jsonify(ok=False, error="链接不存在")
+
+
+@app.route("/api/link-products/<name>/validate", methods=["POST"])
+def api_link_products_validate(name):
+    username, err = require_auth()
+    if err:
+        return err
+    products = load_link_products(username)
+    product = next((p for p in products if p["name"] == name), None)
+    if not product:
+        return jsonify(ok=False, error=f"链接产品 {name} 不存在")
+    keyword = product.get("keyword", "").strip()
+    data = request.get_json(force=True, silent=True) or {}
+    url = (data.get("url") or "").strip()
+    links_to_check = [l for l in product["links"] if l["url"] == url] if url else product["links"]
+    if not links_to_check:
+        return jsonify(ok=False, error="链接不存在")
+    results = []
+    for link in links_to_check:
+        try:
+            import ssl
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            req = Request(link["url"], headers={"User-Agent": "Mozilla/5.0"})
+            with urlopen(req, timeout=10, context=ctx) as resp:
+                body = resp.read().decode("utf-8", errors="replace")
+            found = keyword.lower() in body.lower() if keyword else False
+            link["status"] = "active" if found else "expired"
+            results.append({"url": link["url"], "valid": found})
+        except Exception as e:
+            link["status"] = "expired"
+            results.append({"url": link["url"], "valid": False, "error": str(e)[:80]})
+    save_link_products(username, products)
+    return jsonify(ok=True, results=results)
 
 
 @app.route("/api/admin/users", methods=["POST"])
