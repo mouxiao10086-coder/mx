@@ -260,8 +260,10 @@ def save_daily_record(username, product_name, records):
         existing_data[product_name].append(record_with_time)
 
     data_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(data_file, "w", encoding="utf-8") as f:
+    tmp_file = data_file.with_suffix(".tmp")
+    with open(tmp_file, "w", encoding="utf-8") as f:
         json.dump(existing_data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_file, data_file)  # 原子替换，防止并发写丢数据
 
 
 # ============ 静态文件 ============
@@ -543,12 +545,20 @@ def api_dashboard():
     )
 
 
+@app.route("/api/health")
+def api_health():
+    return jsonify(ok=True, time=datetime.now(BEIJING_TZ).strftime("%Y-%m-%d %H:%M:%S"))
+
+
 @app.route("/api/data/<product_name>/clear", methods=["DELETE"])
 def api_clear_product_data(product_name):
     """清除当前用户某个产品今天的全部数据"""
     username, err = require_auth()
     if err:
         return err
+    products = load_user_products(username)
+    if not any(p["name"] == product_name for p in products):
+        return jsonify(ok=False, error=f"产品 {product_name} 不存在")
     date_str = datetime.now(BEIJING_TZ).strftime("%Y-%m-%d")
     data_file = user_daily_dir(username) / f"{date_str}.json"
     if data_file.exists():
