@@ -123,6 +123,7 @@
             <button class="btn" onclick="loadData()">🔄 刷新</button>
             <button class="btn btn-primary" id="btnFetch" onclick="manualFetch()">🔄 全部采集</button>
         </div>
+        <div id="cronInfo" style="font-size:12px;color:#86868b;padding:0 0 8px 0"></div>
         <div id="dataContent"></div>
     </div>
 
@@ -381,6 +382,18 @@
                     pSel.appendChild(opt);
                 });
                 if (prevP && _products.some(p => p.name === prevP)) pSel.value = prevP;
+
+                // 显示定时采集状态
+                var ci = res.last_cron || {};
+                var cronEl = document.getElementById('cronInfo');
+                if (ci.has_cron) {
+                    var icon = ci.last_status === 'error' ? '🔴' : (ci.last_run ? '✅' : '⏳');
+                    var text = ci.last_run ? ('上次采集：' + ci.last_run) : '定时采集：待首次执行';
+                    cronEl.textContent = icon + ' ' + text;
+                } else {
+                    cronEl.textContent = '⚠️ 未配置定时采集';
+                }
+
                 renderData();
             });
         }

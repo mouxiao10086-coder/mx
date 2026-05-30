@@ -507,12 +507,26 @@ def api_dashboard():
     date = request.args.get("date", dates[0] if dates else "")
     data_result = get_user_data(username, date) if date else {"date": "", "data": {}}
     products = load_user_products(username)
+
+    # 读取该用户的定时采集状态
+    cron_info = {}
+    cron_data = load_cron()
+    for task in cron_data.get("tasks", []):
+        if task.get("username") == username:
+            cron_info = {
+                "last_run": task.get("last_run", ""),
+                "last_status": task.get("last_status", ""),
+                "has_cron": True,
+            }
+            break
+
     return jsonify(
         ok=True,
         dates=dates,
         date=date,
         data=data_result.get("data", {}),
         products=products,
+        last_cron=cron_info,
     )
 
 
