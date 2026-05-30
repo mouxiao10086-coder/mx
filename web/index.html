@@ -896,7 +896,8 @@
                     esc(p.name) + ' <span style="font-size:10px;opacity:0.7" onclick="event.stopPropagation();deleteLinkProduct(\'' + escJs(p.name) + '\')">✕</span></button>';
             }).join('');
             document.getElementById('btnGenerate').disabled = !_linkProducts.length;
-            document.getElementById('btnValidate').disabled = !_currentLinkProduct || !(product && product.links.length);
+            var p = _linkProducts.find(function(pr) { return pr.name === _currentLinkProduct; });
+            document.getElementById('btnValidate').disabled = !p || !(p.links && p.links.length);
         }
 
         function selectLinkProduct(name) {
