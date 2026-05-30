@@ -12,7 +12,6 @@ import secrets
 import re
 import subprocess
 import threading
-from urllib.parse import urlparse
 import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -26,7 +25,6 @@ from flask import Flask, request, jsonify, send_from_directory
 DEFAULT_ROOT = Path.home() / "甲方后台定时查询工具"
 USERS_FILE = DEFAULT_ROOT / "users.json"
 CRON_FILE = DEFAULT_ROOT / "cron.json"
-LINK_DIR = DEFAULT_ROOT / "link_products"
 
 BEIJING_TZ = timezone(timedelta(hours=8))
 CRON_SECRET = os.environ.get("FETCH_CRON_TOKEN", "cron-secret-2026")
@@ -998,178 +996,6 @@ def api_admin_status():
 
     return jsonify(ok=True, uptime_seconds=uptime_seconds, disk_gb=disk_gb,
                    backup_ok=backup_ok, users=user_status)
-
-
-# ============ 链接管理 ============
-def link_products_file(username):
-    LINK_DIR.mkdir(parents=True, exist_ok=True)
-    return LINK_DIR / f"{username}.json"
-
-
-def load_link_products(username):
-    f = link_products_file(username)
-    if f.exists():
-        try:
-            with open(f, "r", encoding="utf-8") as fp:
-                return json.load(fp)
-        except (json.JSONDecodeError, OSError):
-            pass
-    return []
-
-
-def save_link_products(username, products):
-    f = link_products_file(username)
-    with open(f, "w", encoding="utf-8") as fp:
-        json.dump(products, fp, ensure_ascii=False, indent=2)
-
-
-@app.route("/api/link-products", methods=["GET"])
-def api_link_products_list():
-    username, err = require_auth()
-    if err:
-        return err
-    return jsonify(ok=True, products=load_link_products(username))
-
-
-@app.route("/api/link-products", methods=["POST"])
-def api_link_products_create():
-    username, err = require_auth()
-    if err:
-        return err
-    data = request.get_json(force=True, silent=True) or {}
-    name = (data.get("name") or "").strip()
-    template = (data.get("template") or "").strip()
-    if not name or not template:
-        return jsonify(ok=False, error="产品名和模板链接不能为空")
-    products = load_link_products(username)
-    if any(p["name"] == name for p in products):
-        return jsonify(ok=False, error=f"链接产品 {name} 已存在")
-    try:
-        u = urlparse(template)
-        domain = u.hostname or ""
-    except Exception:
-        return jsonify(ok=False, error="链接格式不正确")
-    if not domain:
-        return jsonify(ok=False, error="无法识别域名部分")
-    template_full = template.replace(domain, "{DOMAIN}", 1)
-    products.append({"name": name, "template": template_full, "keyword": data.get("keyword", "").strip(), "links": []})
-    save_link_products(username, products)
-    return jsonify(ok=True, domain_detected=domain)
-
-
-@app.route("/api/link-products/<name>", methods=["DELETE"])
-def api_link_products_delete(name):
-    username, err = require_auth()
-    if err:
-        return err
-    products = load_link_products(username)
-    new_list = [p for p in products if p["name"] != name]
-    if len(new_list) == len(products):
-        return jsonify(ok=False, error=f"链接产品 {name} 不存在")
-    save_link_products(username, new_list)
-    return jsonify(ok=True)
-
-
-@app.route("/api/link-products/<name>/generate", methods=["POST"])
-def api_link_products_generate(name):
-    username, err = require_auth()
-    if err:
-        return err
-    data = request.get_json(force=True, silent=True) or {}
-    raw_text = (data.get("domains") or "").strip()
-    if not raw_text:
-        return jsonify(ok=False, error="请输入域名列表")
-    products = load_link_products(username)
-    product = next((p for p in products if p["name"] == name), None)
-    if not product:
-        return jsonify(ok=False, error=f"链接产品 {name} 不存在")
-    # 清洗域名：去空白、去编号、去空行、去重复
-    domains = []
-    seen = set()
-    for line in raw_text.split("\n"):
-        dom = line.strip()
-        if not dom:
-            continue
-        # 去掉前面的序号 "1. " "1)" 之类
-        dom = re.sub(r'^\d+[\.\)、]\s*', '', dom)
-        # 去掉 .com 之后的残留
-        m = re.search(r'([a-zA-Z0-9][-a-zA-Z0-9]*\.[-a-zA-Z0-9.]+[-a-zA-Z0-9]+\.com)', dom)
-        if m:
-            dom = m.group(1)
-        dom = dom.split()[0] if dom else dom
-        if dom and "." in dom and dom not in seen:
-            seen.add(dom)
-            domains.append(dom)
-    if not domains:
-        return jsonify(ok=False, error="未识别到有效域名")
-    # 生成链接
-    template = product["template"]
-    new_links = []
-    for d in domains:
-        url = template.replace("{DOMAIN}", d)
-        # 不重复添加
-        if not any(l["url"] == url for l in product["links"]):
-            new_links.append({"url": url, "status": "active"})
-    product["links"].extend(new_links)
-    save_link_products(username, products)
-    return jsonify(ok=True, added=len(new_links), links=product["links"])
-
-
-@app.route("/api/link-products/<name>/status", methods=["POST"])
-def api_link_products_status(name):
-    username, err = require_auth()
-    if err:
-        return err
-    data = request.get_json(force=True, silent=True) or {}
-    url = (data.get("url") or "").strip()
-    status = (data.get("status") or "active")
-    if status not in ("active", "expired"):
-        return jsonify(ok=False, error="状态值无效")
-    products = load_link_products(username)
-    product = next((p for p in products if p["name"] == name), None)
-    if not product:
-        return jsonify(ok=False, error=f"链接产品 {name} 不存在")
-    for link in product["links"]:
-        if link["url"] == url:
-            link["status"] = status
-            save_link_products(username, products)
-            return jsonify(ok=True)
-    return jsonify(ok=False, error="链接不存在")
-
-
-@app.route("/api/link-products/<name>/validate", methods=["POST"])
-def api_link_products_validate(name):
-    username, err = require_auth()
-    if err:
-        return err
-    products = load_link_products(username)
-    product = next((p for p in products if p["name"] == name), None)
-    if not product:
-        return jsonify(ok=False, error=f"链接产品 {name} 不存在")
-    keyword = product.get("keyword", "").strip()
-    data = request.get_json(force=True, silent=True) or {}
-    url = (data.get("url") or "").strip()
-    links_to_check = [l for l in product["links"] if l["url"] == url] if url else product["links"]
-    if not links_to_check:
-        return jsonify(ok=False, error="链接不存在")
-    results = []
-    for link in links_to_check:
-        try:
-            import ssl
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            req = Request(link["url"], headers={"User-Agent": "Mozilla/5.0"})
-            with urlopen(req, timeout=10, context=ctx) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-            found = keyword.lower() in body.lower() if keyword else False
-            link["status"] = "active" if found else "expired"
-            results.append({"url": link["url"], "valid": found})
-        except Exception as e:
-            link["status"] = "expired"
-            results.append({"url": link["url"], "valid": False, "error": str(e)[:80]})
-    save_link_products(username, products)
-    return jsonify(ok=True, results=results)
 
 
 @app.route("/api/admin/users", methods=["POST"])
