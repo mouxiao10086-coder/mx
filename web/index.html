@@ -109,7 +109,7 @@
         <div class="header-right">
             <span id="userInfo"></span>
             <select id="viewAsSelect" class="hidden" onchange="switchView()" style="font-size:12px;padding:4px 8px;border:1px solid #d2d2d7;border-radius:6px;max-width:130px">
-                <option value="">查看我的</option>
+                <option value="">切换至...</option>
             </select>
             <span style="color:#d2d2d7;font-size:14px;user-select:none">|</span>
             <button class="btn btn-sm" onclick="openChangelog()">📋 更新日志</button>
@@ -339,6 +339,7 @@
                     _isAdmin = !!(d.user && d.user.is_admin);
                     _username = d.user.username;
                     document.getElementById('userInfo').textContent = d.user.username;
+                    checkImpersonation();
                     if (_isAdmin) {
                         document.getElementById('tabUsers').classList.remove('hidden');
                         document.getElementById('tabOps').classList.remove('hidden');
@@ -387,8 +388,6 @@
         function loadData() {
             var sel = document.getElementById('dateSelect');
             var dateParam = sel.value ? '?date=' + encodeURIComponent(sel.value) : '';
-            var viewAs = document.getElementById('viewAsSelect').value;
-            if (viewAs) dateParam += (dateParam ? '&' : '?') + 'view_as=' + encodeURIComponent(viewAs);
             api({ url: '/api/dashboard' + dateParam }).then(res => {
                 if (!res.ok) return;
                 const dates = res.dates || [];
@@ -417,16 +416,43 @@
                 if (prevP && _products.some(p => p.name === prevP)) pSel.value = prevP;
 
         function switchView() {
-            loadData();
+            var target = document.getElementById('viewAsSelect').value;
+            if (!target) return;
+            // 保存管理员 token，方便之后返回
+            var adminToken = localStorage.getItem('token');
+            if (adminToken) sessionStorage.setItem('admin_token', adminToken);
+            // 拿到目标用户 token
+            api({ url: '/api/admin/impersonate', method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({username: target}) })
+                .then(d => {
+                    if (d.ok) {
+                        localStorage.setItem('token', d.token);
+                        window.location.reload();
+                    } else alert(d.error || '切换失败');
+                });
+        }
+
+        // 页面加载时检测是否在模拟其他用户
+        function checkImpersonation() {
+            var adminToken = sessionStorage.getItem('admin_token');
+            if (adminToken) {
+                // 显示返回横幅
+                var banner = document.createElement('div');
+                banner.style.cssText = 'background:#fff3e0;color:#e65100;text-align:center;padding:6px;font-size:13px;position:sticky;top:0;z-index:20;border-bottom:1px solid #ffe0b2';
+                banner.innerHTML = '🔍 正在以 <b>' + esc(_username) + '</b> 身份查看 | <a href="javascript:returnToAdmin()" style="color:#007aff;cursor:pointer;font-weight:600">返回管理员</a>';
+                document.body.insertBefore(banner, document.body.firstChild);
+            }
+        }
+        function returnToAdmin() {
+            localStorage.setItem('token', sessionStorage.getItem('admin_token'));
+            sessionStorage.removeItem('admin_token');
+            window.location.reload();
         }
 
         // 数据看板状态行更新时间
                 // 显示定时采集状态
                 var ci = res.last_cron || {};
                 var cronEl = document.getElementById('cronInfo');
-                var label = '';
-                var viewAs = document.getElementById('viewAsSelect').value;
-                if (viewAs) label = '[' + esc(viewAs) + ' 的数据] ';
                 if (ci.has_cron) {
                     var icon = ci.last_status === 'error' ? '🔴' : (ci.last_run ? '✅' : '⏳');
                     var text = ci.last_run ? ('上次采集：' + ci.last_run) : '定时采集：待首次执行';
@@ -850,7 +876,7 @@
             api({ url: '/api/admin/users' }).then(r => {
                 if (!r.ok) return;
                 var sel = document.getElementById('viewAsSelect');
-                sel.innerHTML = '<option value="">查看我的</option>';
+                sel.innerHTML = '<option value="">切换至...</option>';
                 r.users.forEach(function(u) {
                     if (u.username !== _username) {
                         sel.innerHTML += '<option value="' + escJs(u.username) + '">' + esc(u.username) + '</option>';

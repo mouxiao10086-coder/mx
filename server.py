@@ -510,18 +510,6 @@ def api_dashboard():
     if err:
         return err
 
-    # 管理员可切换视角
-    view_user = request.args.get("view_as", "")
-    if view_user:
-        users = load_users()
-        current = next((u for u in users["users"] if u["username"] == username), None)
-        if not current or not current["is_admin"]:
-            return jsonify(ok=False, error="需要管理员权限")
-        target = next((u for u in users["users"] if u["username"] == view_user), None)
-        if not target:
-            return jsonify(ok=False, error=f"用户 {view_user} 不存在")
-        username = view_user
-
     dates = get_user_dates(username)
     date = request.args.get("date", dates[0] if dates else "")
     data_result = get_user_data(username, date) if date else {"date": "", "data": {}}
@@ -949,6 +937,26 @@ def api_admin_get_users():
     if not current or not current["is_admin"]:
         return jsonify(ok=False, error="需要管理员权限")
     return jsonify(ok=True, users=users["users"])
+
+
+@app.route("/api/admin/impersonate", methods=["POST"])
+def api_admin_impersonate():
+    """管理员获取指定用户的 token，以该用户身份登录"""
+    username, err = require_auth()
+    if err:
+        return err
+    users = load_users()
+    if not any(u["username"] == username and u.get("is_admin") for u in users["users"]):
+        return jsonify(ok=False, error="需要管理员权限")
+    data = request.get_json(force=True, silent=True) or {}
+    target = (data.get("username") or "").strip()
+    if not any(u["username"] == target for u in users["users"]):
+        return jsonify(ok=False, error=f"用户 {target} 不存在")
+    token = secrets.token_hex(32)
+    exp = (datetime.now(BEIJING_TZ) + timedelta(days=7)).timestamp()
+    with TOKENS_LOCK:
+        TOKENS[token] = {"username": target, "exp": exp}
+    return jsonify(ok=True, token=token, username=target)
 
 
 @app.route("/api/admin/status")
