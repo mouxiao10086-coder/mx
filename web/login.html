@@ -120,44 +120,9 @@
             </div>
             <button type="submit" class="btn-login" id="btnLogin">登 录</button>
         </form>
-
-        <!-- 注册表单 -->
-        <form id="registerForm" class="hidden" onsubmit="doRegister(event)">
-            <div class="form-group">
-                <label>用户名</label>
-                <input type="text" id="regUsername" placeholder="请输入用户名" autocomplete="username" required>
-            </div>
-            <div class="form-group">
-                <label>密码</label>
-                <input type="password" id="regPassword" placeholder="至少4位" autocomplete="new-password" required minlength="4">
-            </div>
-            <button type="submit" class="btn-login" id="btnRegister">注 册</button>
-        </form>
-
-        <div class="switch-mode">
-            <span id="switchToRegister">
-                没有账号？<a onclick="showRegister()">立即注册</a>
-            </span>
-            <span id="switchToLogin" class="hidden">
-                已有账号？<a onclick="showLogin()">返回登录</a>
-            </span>
-        </div>
     </div>
 
     <script>
-        function showRegister() {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.remove('hidden');
-            document.getElementById('switchToRegister').classList.add('hidden');
-            document.getElementById('switchToLogin').classList.remove('hidden');
-        }
-        function showLogin() {
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('loginForm').classList.remove('hidden');
-            document.getElementById('switchToLogin').classList.add('hidden');
-            document.getElementById('switchToRegister').classList.remove('hidden');
-        }
-
         async function doLogin(e) {
             e.preventDefault();
             const btn = document.getElementById('btnLogin');
@@ -177,37 +142,6 @@
                     window.location.href = '/';
                 } else {
                     toast(d.error || '登录失败', 'err');
-                }
-            } catch(err) {
-                toast('网络错误', 'err');
-            }
-            btn.classList.remove('loading'); btn.disabled = false;
-        }
-
-        async function doRegister(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnRegister');
-            btn.classList.add('loading'); btn.disabled = true;
-            const username = document.getElementById('regUsername').value.trim();
-            const password = document.getElementById('regPassword').value;
-            if (password.length < 4) {
-                toast('密码至少4位', 'err');
-                btn.classList.remove('loading'); btn.disabled = false;
-                return;
-            }
-            try {
-                const res = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username, password})
-                });
-                const d = await res.json();
-                if (d.ok) {
-                    toast('注册成功，请登录', 'ok');
-                    showLogin();
-                    document.getElementById('username').value = username;
-                } else {
-                    toast(d.error || '注册失败', 'err');
                 }
             } catch(err) {
                 toast('网络错误', 'err');
