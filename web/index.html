@@ -103,6 +103,7 @@
         <div class="header-left">
             <div class="tab active" onclick="switchTab('data')">📊 数据看板</div>
             <div class="tab" onclick="switchTab('settings')">⚙️ 任务配置</div>
+            <div class="tab" onclick="switchTab('links')">🔗 链接管理</div>
             <div class="tab hidden" id="tabUsers" onclick="switchTab('users')">👥 用户管理</div>
             <div class="tab hidden" id="tabOps" onclick="switchTab('ops')">🖥️ 运维</div>
         </div>
@@ -127,6 +128,40 @@
         <div class="section">
             <div class="section-title">👥 用户概览</div>
             <div class="section-body" id="opsUsers"></div>
+        </div>
+    </div>
+
+    <!-- ===== 链接管理 ===== -->
+    <div id="page-links" class="container hidden">
+        <div class="section" style="margin-bottom:20px">
+            <div class="section-title">📦 创建链接产品</div>
+            <div class="section-body">
+                <div class="form-row">
+                    <input id="linkProdName" placeholder="产品名，如 82B主页" style="max-width:200px">
+                    <input id="linkTemplate" placeholder="粘贴完整链接，如 https://xxx.com?ch=...">
+                    <button class="btn btn-primary" onclick="createLinkProduct()">创建</button>
+                </div>
+                <div id="linkCreateHint" style="font-size:12px;color:#86868b;margin-top:4px">自动识别域名部分，后续粘贴新域名即可替换</div>
+            </div>
+        </div>
+        <div class="section">
+            <div class="section-title">🔗 生成链接</div>
+            <div class="section-body">
+                <div id="linkTabs" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"></div>
+                <div class="form-row">
+                    <textarea id="linkDomains" placeholder="粘贴域名列表，一行一个或任意分隔&#10;如：&#10;ym9jlq0k.2pg89dcv.com&#10;tuvo9v1i.znp9kzr7.com" rows="6" style="flex:1;min-width:300px;font-family:monospace;font-size:12px"></textarea>
+                </div>
+                <div class="form-row">
+                    <button class="btn btn-primary" id="btnGenerate" onclick="generateLinks()" disabled>⚡ 生成链接</button>
+                    <select id="linkFilter" onchange="renderLinkList()" style="max-width:120px">
+                        <option value="all">全部</option>
+                        <option value="active">可用</option>
+                        <option value="expired">已失效</option>
+                    </select>
+                    <span id="linkCount" style="font-size:12px;color:#86868b"></span>
+                </div>
+                <div id="linkList" style="max-height:500px;overflow-y:auto"></div>
+            </div>
         </div>
     </div>
 
@@ -381,6 +416,7 @@
             if (isData) loadData();
             if (isUsers) loadAdminUsers();
             if (isOps) loadOps();
+            if (tab === 'links') loadLinks();
         }
 
         // ============ 数据页 ============
@@ -816,6 +852,128 @@
             if (!confirm('确定删除定时任务？')) return;
             api({ url: '/api/cron', method: 'DELETE' })
                 .then(d => { if (d.ok) { alert('定时任务已删除'); loadSettings(); } else alert(d.error || '删除失败'); });
+        }
+
+        // ============ 链接管理 ============
+        let _linkProducts = [];
+        let _currentLinkProduct = null;
+
+        function loadLinks() {
+            api({ url: '/api/link-products' }).then(res => {
+                if (!res.ok) return;
+                _linkProducts = res.products || [];
+                renderLinkTabs();
+                if (!_currentLinkProduct && _linkProducts.length) {
+                    _currentLinkProduct = _linkProducts[0].name;
+                }
+                renderLinkList();
+            });
+        }
+
+        function createLinkProduct() {
+            var name = document.getElementById('linkProdName').value.trim();
+            var template = document.getElementById('linkTemplate').value.trim();
+            if (!name || !template) { alert('请填写产品名和链接'); return; }
+            api({ url: '/api/link-products', method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({name: name, template: template}) })
+                .then(d => {
+                    if (d.ok) {
+                        document.getElementById('linkProdName').value = '';
+                        document.getElementById('linkTemplate').value = '';
+                        document.getElementById('linkCreateHint').textContent = '✅ 已创建，识别域名: ' + (d.domain_detected || '');
+                        loadLinks();
+                    } else alert(d.error || '创建失败');
+                });
+        }
+
+        function renderLinkTabs() {
+            var el = document.getElementById('linkTabs');
+            el.innerHTML = _linkProducts.map(function(p) {
+                var active = p.name === _currentLinkProduct ? 'btn-primary' : '';
+                return '<button class="btn btn-sm ' + active + '" onclick="selectLinkProduct(\'' + escJs(p.name) + '\')" style="margin:0">' +
+                    esc(p.name) + ' <span style="font-size:10px;opacity:0.7" onclick="event.stopPropagation();deleteLinkProduct(\'' + escJs(p.name) + '\')">✕</span></button>';
+            }).join('');
+            document.getElementById('btnGenerate').disabled = !_linkProducts.length;
+        }
+
+        function selectLinkProduct(name) {
+            _currentLinkProduct = name;
+            renderLinkTabs();
+            renderLinkList();
+        }
+
+        function deleteLinkProduct(name) {
+            if (!confirm('删除链接产品 ' + name + '？所有生成链接将被删除')) return;
+            api({ url: '/api/link-products/' + encodeURIComponent(name), method: 'DELETE' })
+                .then(d => {
+                    if (d.ok) {
+                        if (_currentLinkProduct === name) _currentLinkProduct = null;
+                        loadLinks();
+                    } else alert(d.error || '删除失败');
+                });
+        }
+
+        function generateLinks() {
+            if (!_currentLinkProduct) return;
+            var domains = document.getElementById('linkDomains').value.trim();
+            if (!domains) { alert('请粘贴域名列表'); return; }
+            var btn = document.getElementById('btnGenerate');
+            btn.disabled = true; btn.textContent = '...';
+            api({ url: '/api/link-products/' + encodeURIComponent(_currentLinkProduct) + '/generate',
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({domains: domains}) })
+                .then(d => {
+                    if (d.ok) {
+                        document.getElementById('linkDomains').value = '';
+                        // 更新本地数据
+                        var p = _linkProducts.find(function(p) { return p.name === _currentLinkProduct; });
+                        if (p) p.links = d.links;
+                        renderLinkList();
+                    } else alert(d.error || '生成失败');
+                }).finally(function(){ btn.disabled = false; btn.textContent = '⚡ 生成链接'; });
+        }
+
+        function renderLinkList() {
+            var el = document.getElementById('linkList');
+            var filter = document.getElementById('linkFilter').value;
+            var product = _linkProducts.find(function(p) { return p.name === _currentLinkProduct; });
+            if (!product || !product.links.length) {
+                el.innerHTML = '<div class="empty">暂无链接</div>';
+                document.getElementById('linkCount').textContent = '';
+                return;
+            }
+            var links = product.links;
+            if (filter !== 'all') links = links.filter(function(l) { return l.status === filter; });
+            document.getElementById('linkCount').textContent = '共 ' + product.links.length + ' 条（可用 ' +
+                product.links.filter(function(l){return l.status==='active'}).length + '）';
+            el.innerHTML = links.map(function(l, i) {
+                var isExpired = l.status === 'expired';
+                var bg = isExpired ? 'background:#fff0f0' : '';
+                return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;' + bg + '">' +
+                    '<span style="color:#86868b;min-width:24px">' + (i+1) + '</span>' +
+                    '<input type="checkbox" ' + (isExpired ? 'checked' : '') + ' onchange="toggleLinkStatus(\'' + escJs(l.url) + '\', this.checked)" title="标记为已失效">' +
+                    '<a href="' + esc(l.url) + '" target="_blank" style="flex:1;color:' + (isExpired ? '#c62828' : '#007aff') + ';word-break:break-all;text-decoration:none">' + esc(l.url) + '</a>' +
+                    '<button class="btn btn-sm" onclick="window.open(\'' + escJs(l.url) + '\')" title="新窗口打开">🔗</button>' +
+                    '<span style="font-size:11px;color:' + (isExpired ? '#c62828' : '#34c759') + ';min-width:50px">' + (isExpired ? '❌ 失效' : '✅ 可用') + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function toggleLinkStatus(url, isExpired) {
+            if (!_currentLinkProduct) return;
+            api({ url: '/api/link-products/' + encodeURIComponent(_currentLinkProduct) + '/status',
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({url: url, status: isExpired ? 'expired' : 'active'}) })
+                .then(d => {
+                    if (d.ok) {
+                        var p = _linkProducts.find(function(p) { return p.name === _currentLinkProduct; });
+                        if (p) {
+                            var link = p.links.find(function(l) { return l.url === url; });
+                            if (link) link.status = isExpired ? 'expired' : 'active';
+                        }
+                        renderLinkList();
+                    }
+                });
         }
 
         // ============ 管理员功能 ============
