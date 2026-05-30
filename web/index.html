@@ -321,7 +321,12 @@
                     if (!d.ok) { localStorage.removeItem('token'); window.location.href = '/login.html'; return; }
                     _isAdmin = !!(d.user && d.user.is_admin);
                     document.getElementById('userInfo').textContent = d.user.username;
-                    if (_isAdmin) initAdminSwitcher();
+                    if (_isAdmin) {
+                        document.getElementById('tabUsers').classList.remove('hidden');
+                        initAdminSwitcher();
+                    } else {
+                        document.getElementById('tabUsers').classList.add('hidden');
+                    }
                     loadData();
                 })
                 .catch(() => { localStorage.removeItem('token'); window.location.href = '/login.html'; });
@@ -535,12 +540,6 @@
                 buildCron(cfg.cron_expr);
             });
 
-            // 管理员：显示入口
-            if (_isAdmin) {
-                document.getElementById('tabUsers').classList.remove('hidden');
-            } else {
-                document.getElementById('tabUsers').classList.add('hidden');
-            }
         }
 
         // ============ 产品管理 ============
