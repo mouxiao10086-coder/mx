@@ -321,6 +321,7 @@
                     if (!d.ok) { localStorage.removeItem('token'); window.location.href = '/login.html'; return; }
                     _isAdmin = !!(d.user && d.user.is_admin);
                     document.getElementById('userInfo').textContent = d.user.username;
+                    if (_isAdmin) initAdminSwitcher();
                     loadData();
                 })
                 .catch(() => { localStorage.removeItem('token'); window.location.href = '/login.html'; });
@@ -534,23 +535,11 @@
                 buildCron(cfg.cron_expr);
             });
 
-            // 管理员：显示用户管理入口 + 切换视角
+            // 管理员：显示入口
             if (_isAdmin) {
                 document.getElementById('tabUsers').classList.remove('hidden');
-                api({ url: '/api/admin/users' }).then(r => {
-                    if (!r.ok) return;
-                    var sel = document.getElementById('viewAsSelect');
-                    sel.innerHTML = '<option value="">查看我的</option>';
-                    r.users.forEach(function(u) {
-                        if (u.username !== _username) {
-                            sel.innerHTML += '<option value="' + escJs(u.username) + '">' + esc(u.username) + '</option>';
-                        }
-                    });
-                    sel.classList.remove('hidden');
-                });
             } else {
                 document.getElementById('tabUsers').classList.add('hidden');
-                document.getElementById('viewAsSelect').classList.add('hidden');
             }
         }
 
@@ -800,6 +789,20 @@
         }
 
         // ============ 管理员功能 ============
+        function initAdminSwitcher() {
+            api({ url: '/api/admin/users' }).then(r => {
+                if (!r.ok) return;
+                var sel = document.getElementById('viewAsSelect');
+                sel.innerHTML = '<option value="">查看我的</option>';
+                r.users.forEach(function(u) {
+                    if (u.username !== _username) {
+                        sel.innerHTML += '<option value="' + escJs(u.username) + '">' + esc(u.username) + '</option>';
+                    }
+                });
+                sel.classList.remove('hidden');
+            });
+        }
+
         function loadAdminUsers() {
             api({ url: '/api/admin/users' }).then(res => {
                 var list = document.getElementById('adminUserList');
