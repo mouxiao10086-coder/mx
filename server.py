@@ -43,6 +43,7 @@ def token_cleaner():
             for k in expired:
                 TOKENS.pop(k, None)
 app = Flask(__name__, static_folder="web", static_url_path="/static")
+START_TIME = datetime.now(BEIJING_TZ)  # 记录启动时间，用于运维看板
 
 
 @app.after_request
@@ -466,6 +467,9 @@ def api_delete_product(name):
     if len(new_products) == len(products):
         return jsonify(ok=False, error=f"产品 {name} 不存在")
     save_user_products(username, new_products)
+    # 如果删光产品，自动停掉定时任务
+    if not new_products:
+        cancel_user_cron(username)
     return jsonify(ok=True)
 
 
@@ -831,6 +835,11 @@ def schedule_user_cron(username, cron_expr):
         delay = 1
 
     def trigger():
+        # 自检：无产品则停 cron
+        products = load_user_products(username)
+        if not products:
+            cancel_user_cron(username)
+            return
         try:
             result = fetch_for_user(username)
             errs = result.get("errors", [])
@@ -940,6 +949,53 @@ def api_admin_get_users():
     if not current or not current["is_admin"]:
         return jsonify(ok=False, error="需要管理员权限")
     return jsonify(ok=True, users=users["users"])
+
+
+@app.route("/api/admin/status")
+def api_admin_status():
+    """运维看板：仅管理员，返回服务器状态"""
+    username, err = require_auth()
+    if err:
+        return err
+    users = load_users()
+    current = next((u for u in users["users"] if u["username"] == username), None)
+    if not current or not current["is_admin"]:
+        return jsonify(ok=False, error="需要管理员权限")
+
+    # 运行时长
+    uptime_seconds = (datetime.now(BEIJING_TZ) - START_TIME).total_seconds()
+
+    # 磁盘（Mac Mini 根目录）
+    try:
+        import shutil
+        disk = shutil.disk_usage("/")
+        disk_gb = disk.free // (1024 ** 3)
+    except Exception:
+        disk_gb = -1
+
+    # 备份状态
+    backup_dir = Path.home() / "backup" / datetime.now(BEIJING_TZ).strftime("%Y%m%d")
+    backup_ok = backup_dir.exists()
+
+    # 各用户 cron 状态
+    cron_data = load_cron()
+    user_status = []
+    all_users = users.get("users", [])
+    for u in all_users:
+        uname = u["username"]
+        products = load_user_products(uname)
+        task = next((t for t in cron_data.get("tasks", []) if t.get("username") == uname), None)
+        user_status.append({
+            "username": uname,
+            "product_count": len(products),
+            "cron_enabled": bool(task),
+            "last_run": task.get("last_run", "") if task else "",
+            "last_status": task.get("last_status", "") if task else "",
+            "last_detail": task.get("last_detail", "") if task else "",
+        })
+
+    return jsonify(ok=True, uptime_seconds=uptime_seconds, disk_gb=disk_gb,
+                   backup_ok=backup_ok, users=user_status)
 
 
 @app.route("/api/admin/users", methods=["POST"])

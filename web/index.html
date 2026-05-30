@@ -104,6 +104,7 @@
             <div class="tab active" onclick="switchTab('data')">📊 数据看板</div>
             <div class="tab" onclick="switchTab('settings')">⚙️ 任务配置</div>
             <div class="tab hidden" id="tabUsers" onclick="switchTab('users')">👥 用户管理</div>
+            <div class="tab hidden" id="tabOps" onclick="switchTab('ops')">🖥️ 运维</div>
         </div>
         <div class="header-right">
             <span id="userInfo"></span>
@@ -114,6 +115,18 @@
             <button class="btn btn-sm" onclick="openChangelog()">📋 更新日志</button>
             <button class="btn btn-sm" onclick="openChangePwd()">🔑 改密码</button>
             <button class="btn btn-sm btn-danger" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <!-- ===== 运维看板 ===== -->
+    <div id="page-ops" class="container hidden">
+        <div class="section" style="margin-bottom:20px">
+            <div class="section-title">🟢 服务状态</div>
+            <div class="section-body" id="opsStatus"></div>
+        </div>
+        <div class="section">
+            <div class="section-title">👥 用户概览</div>
+            <div class="section-body" id="opsUsers"></div>
         </div>
     </div>
 
@@ -328,6 +341,7 @@
                     document.getElementById('userInfo').textContent = d.user.username;
                     if (_isAdmin) {
                         document.getElementById('tabUsers').classList.remove('hidden');
+                        document.getElementById('tabOps').classList.remove('hidden');
                         initAdminSwitcher();
                     } else {
                         document.getElementById('tabUsers').classList.add('hidden');
@@ -361,9 +375,12 @@
             document.getElementById('page-settings').classList.toggle('hidden', !isSettings);
             var isUsers = tab === 'users';
             document.getElementById('page-users').classList.toggle('hidden', !isUsers);
+            var isOps = tab === 'ops';
+            document.getElementById('page-ops').classList.toggle('hidden', !isOps);
             if (isSettings) loadSettings();
             if (isData) loadData();
             if (isUsers) loadAdminUsers();
+            if (isOps) loadOps();
         }
 
         // ============ 数据页 ============
@@ -802,6 +819,33 @@
         }
 
         // ============ 管理员功能 ============
+        function loadOps() {
+            api({ url: '/api/admin/status' }).then(res => {
+                if (!res.ok) return;
+                var days = Math.floor(res.uptime_seconds / 86400);
+                var hours = Math.floor((res.uptime_seconds % 86400) / 3600);
+                var uptime = (days ? days + '天 ' : '') + hours + '小时';
+                var disk = res.disk_gb >= 0 ? res.disk_gb + ' GB 可用' : '未知';
+                var backup = res.backup_ok ? '✅ 今日已备份' : '⏳ 待凌晨 2 点';
+                document.getElementById('opsStatus').innerHTML =
+                    '<div style="font-size:14px;line-height:2">' +
+                    '<div>⏱ 运行: <b>' + uptime + '</b></div>' +
+                    '<div>💾 磁盘: <b>' + disk + '</b></div>' +
+                    '<div>📦 备份: <b>' + backup + '</b></div>' +
+                    '<div>🔄 健康: <b>每 2 分钟自动检测</b></div>' +
+                    '</div>';
+                var html = '<div style="font-size:13px;line-height:2">';
+                (res.users || []).forEach(function(u) {
+                    var status = u.cron_enabled ? (u.last_status === 'error' ? '🔴' : '✅') : '⛔';
+                    var detail = u.cron_enabled ? (u.last_detail || '无记录') : '未配置';
+                    html += '<div>' + status + ' <b>' + esc(u.username) + '</b> ' +
+                        '产品 ' + u.product_count + '个 | ' + esc(detail) + '</div>';
+                });
+                html += '</div>';
+                document.getElementById('opsUsers').innerHTML = html;
+            });
+        }
+
         function initAdminSwitcher() {
             api({ url: '/api/admin/users' }).then(r => {
                 if (!r.ok) return;
