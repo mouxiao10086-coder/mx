@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI 预览</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box }
+body { font-family: -apple-system,"SF Pro Text","Helvetica Neue",sans-serif; background:#f5f5f7; color:#1d1d1f; padding:40px }
+h2 { margin-bottom:16px; font-size:16px }
+.group { background:#fff; border-radius:8px; border:1px solid #e5e5ea; padding:20px; margin-bottom:20px }
+
+/* 输入框 focus */
+input, select { padding:6px 10px; border:1px solid #d2d2d7; border-radius:6px; font-size:13px }
+input:focus, select:focus { outline:none; border-color:#007aff; box-shadow:0 0 0 2px rgba(0,122,255,0.3) }
+
+/* 表格 hover */
+table { width:100%; border-collapse:collapse; font-size:13px }
+th { text-align:left; padding:8px 16px; color:#86868b; font-weight:500; font-size:12px; border-bottom:1px solid #e5e5ea }
+td { padding:8px 16px; border-bottom:1px solid #f0f0f0 }
+tbody tr:hover td { background:#f0f4ff }
+
+/* 导航栏 */
+.header { background:#fff; border-bottom:1px solid #e5e5ea; display:flex; align-items:center; justify-content:space-between; padding:6px 20px }
+.header-right { display:flex; align-items:center; gap:12px }
+.btn { padding:6px 14px; border:1px solid #d2d2d7; border-radius:6px; font-size:13px; background:#fff; cursor:pointer }
+.btn-primary { background:#007aff; color:#fff; border-color:#007aff }
+.btn-danger { color:#ff3b30; border-color:#ff3b30 }
+</style>
+</head>
+<body>
+
+<div class="group">
+  <h2>1. 输入框 focus 蓝框</h2>
+  <input placeholder="点击我试试" style="width:260px">
+  &nbsp;
+  <select><option>下拉框也点我</option></select>
+  <p style="font-size:12px;color:#86868b;margin-top:8px">点击时蓝色边框 + 阴影，与 macOS 原生一致</p>
+</div>
+
+<div class="group">
+  <h2>2. 表格 hover 淡蓝背景</h2>
+  <table>
+    <thead><tr><th>渠道</th><th>访问</th><th>注册</th><th>首充</th></tr></thead>
+    <tbody>
+      <tr><td>FB-PWA-13</td><td>1,280</td><td>340</td><td>52</td></tr>
+      <tr><td>GG-AD-07</td><td>890</td><td>210</td><td>31</td></tr>
+      <tr><td>TK-CA-22</td><td>3,100</td><td>720</td><td>98</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#86868b;margin-top:8px">鼠标划过时背景变淡蓝</p>
+</div>
+
+<div class="group">
+  <h2>3. 导航栏分组</h2>
+  <div class="header">
+    <div style="display:flex;gap:0">
+      <div style="padding:12px 24px;color:#007aff;font-weight:600;border-bottom:2px solid #007aff">📊 数据看板</div>
+      <div style="padding:12px 24px;color:#86868b">⚙️ 任务配置</div>
+      <div style="padding:12px 24px;color:#86868b">👥 用户管理</div>
+    </div>
+    <div class="header-right">
+      <span style="font-size:13px;color:#86868b">admin</span>
+      <select style="font-size:12px;padding:4px 8px;border:1px solid #d2d2d7;border-radius:6px">
+        <option>查看我的</option>
+        <option>zlq</option>
+        <option>lx</option>
+      </select>
+      <span style="color:#d2d2d7">|</span>
+      <button class="btn" style="font-size:12px;padding:4px 10px">📋 更新日志</button>
+      <button class="btn" style="font-size:12px;padding:4px 10px">🔑 改密码</button>
+      <button class="btn btn-danger" style="font-size:12px;padding:4px 10px">退出</button>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#86868b;margin-top:8px">右侧用竖线 `|` 分隔：左边是身份区，右边是操作区</p>
+</div>
+
+</body>
+</html>

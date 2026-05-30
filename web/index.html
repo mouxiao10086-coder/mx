@@ -37,6 +37,7 @@
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { text-align: left; padding: 8px 16px; color: #86868b; font-weight: 500; font-size: 12px; border-bottom: 1px solid #e5e5ea; background: #fafafa; }
         td { padding: 8px 16px; border-bottom: 1px solid #f0f0f0; }
+        tbody tr:hover td { background: #f0f4ff; }
         .num { text-align: right; font-variant-numeric: tabular-nums; }
 
         /* 分页 */
@@ -56,6 +57,7 @@
         .form-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
         .form-row label { font-size: 13px; color: #86868b; min-width: 60px; }
         .form-row input, .form-row select { padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; flex: 1; min-width: 120px; }
+        .form-row input:focus, .form-row select:focus, input:focus, select:focus { outline: none; border-color: #007aff; box-shadow: 0 0 0 2px rgba(0,122,255,0.3); }
         .path-display { flex: 1; padding: 6px 10px; background: #f5f5f5; border-radius: 6px; font-size: 13px; color: #1d1d1f; font-family: "SF Mono", Menlo, monospace; word-break: break-all; min-width: 120px; }
 
         /* 产品卡片 */
@@ -105,9 +107,10 @@
         </div>
         <div class="header-right">
             <span id="userInfo"></span>
-            <select id="viewAsSelect" class="hidden" onchange="switchView()" style="font-size:12px;padding:4px 8px;border:1px solid #d2d2d7;border-radius:6px;max-width:120px">
+            <select id="viewAsSelect" class="hidden" onchange="switchView()" style="font-size:12px;padding:4px 8px;border:1px solid #d2d2d7;border-radius:6px;max-width:130px">
                 <option value="">查看我的</option>
             </select>
+            <span style="color:#d2d2d7;font-size:14px;user-select:none">|</span>
             <button class="btn btn-sm" onclick="openChangelog()">📋 更新日志</button>
             <button class="btn btn-sm" onclick="openChangePwd()">🔑 改密码</button>
             <button class="btn btn-sm btn-danger" onclick="logout()">退出</button>
