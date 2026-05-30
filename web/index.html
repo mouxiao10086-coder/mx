@@ -105,6 +105,9 @@
         </div>
         <div class="header-right">
             <span id="userInfo"></span>
+            <select id="viewAsSelect" class="hidden" onchange="switchView()" style="font-size:12px;padding:4px 8px;border:1px solid #d2d2d7;border-radius:6px;max-width:120px">
+                <option value="">查看我的</option>
+            </select>
             <button class="btn btn-sm" onclick="openChangelog()">📋 更新日志</button>
             <button class="btn btn-sm" onclick="openChangePwd()">🔑 改密码</button>
             <button class="btn btn-sm btn-danger" onclick="logout()">退出</button>
@@ -356,6 +359,8 @@
         function loadData() {
             var sel = document.getElementById('dateSelect');
             var dateParam = sel.value ? '?date=' + encodeURIComponent(sel.value) : '';
+            var viewAs = document.getElementById('viewAsSelect').value;
+            if (viewAs) dateParam += (dateParam ? '&' : '?') + 'view_as=' + encodeURIComponent(viewAs);
             api({ url: '/api/dashboard' + dateParam }).then(res => {
                 if (!res.ok) return;
                 const dates = res.dates || [];
@@ -383,9 +388,17 @@
                 });
                 if (prevP && _products.some(p => p.name === prevP)) pSel.value = prevP;
 
+        function switchView() {
+            loadData();
+        }
+
+        // 数据看板状态行更新时间
                 // 显示定时采集状态
                 var ci = res.last_cron || {};
                 var cronEl = document.getElementById('cronInfo');
+                var label = '';
+                var viewAs = document.getElementById('viewAsSelect').value;
+                if (viewAs) label = '[' + esc(viewAs) + ' 的数据] ';
                 if (ci.has_cron) {
                     var icon = ci.last_status === 'error' ? '🔴' : (ci.last_run ? '✅' : '⏳');
                     var text = ci.last_run ? ('上次采集：' + ci.last_run) : '定时采集：待首次执行';
@@ -521,11 +534,23 @@
                 buildCron(cfg.cron_expr);
             });
 
-            // 管理员：显示用户管理入口
+            // 管理员：显示用户管理入口 + 切换视角
             if (_isAdmin) {
                 document.getElementById('tabUsers').classList.remove('hidden');
+                api({ url: '/api/admin/users' }).then(r => {
+                    if (!r.ok) return;
+                    var sel = document.getElementById('viewAsSelect');
+                    sel.innerHTML = '<option value="">查看我的</option>';
+                    r.users.forEach(function(u) {
+                        if (u.username !== _username) {
+                            sel.innerHTML += '<option value="' + escJs(u.username) + '">' + esc(u.username) + '</option>';
+                        }
+                    });
+                    sel.classList.remove('hidden');
+                });
             } else {
                 document.getElementById('tabUsers').classList.add('hidden');
+                document.getElementById('viewAsSelect').classList.add('hidden');
             }
         }
 

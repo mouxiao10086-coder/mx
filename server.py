@@ -503,6 +503,19 @@ def api_dashboard():
     username, err = require_auth()
     if err:
         return err
+
+    # 管理员可切换视角
+    view_user = request.args.get("view_as", "")
+    if view_user:
+        users = load_users()
+        current = next((u for u in users["users"] if u["username"] == username), None)
+        if not current or not current["is_admin"]:
+            return jsonify(ok=False, error="需要管理员权限")
+        target = next((u for u in users["users"] if u["username"] == view_user), None)
+        if not target:
+            return jsonify(ok=False, error=f"用户 {view_user} 不存在")
+        username = view_user
+
     dates = get_user_dates(username)
     date = request.args.get("date", dates[0] if dates else "")
     data_result = get_user_data(username, date) if date else {"date": "", "data": {}}
