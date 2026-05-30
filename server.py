@@ -1026,7 +1026,7 @@ curl -s -X POST "http://localhost:8991/api/fetch-now" \\
     try:
         from waitress import serve
         print("使用 waitress 多线程服务器")
-        serve(app, host="0.0.0.0", port=8991, threads=4)
+        serve(app, host="127.0.0.1", port=8991, threads=4)
     except ImportError:
         print("未安装 waitress，使用 Flask 开发服务器（单线程，仅适合本地调试）")
         app.run(host="0.0.0.0", port=8991, debug=False)
