@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>甲方后台定时查询工具</title>
+    <title>广告数据管理平台</title>
     <style>
         * { margin:0; padding:0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif; background: #f5f5f7; color: #1d1d1f; }
@@ -103,8 +103,9 @@
         <div class="header-left">
             <div class="tab active" onclick="switchTab('data')">📊 数据看板</div>
             <div class="tab" onclick="switchTab('settings')">⚙️ 任务配置</div>
+            <div class="tab" onclick="switchTab('links')">🔗 投放链接</div>
             <div class="tab hidden" id="tabUsers" onclick="switchTab('users')">👥 用户管理</div>
-            <div class="tab hidden" id="tabOps" onclick="switchTab('ops')">🖥️ 运维</div>
+            <div class="tab hidden" id="tabOps" onclick="switchTab('ops')">🖥️ 运维看板</div>
         </div>
         <div class="header-right">
             <span id="userInfo"></span>
@@ -127,6 +128,52 @@
         <div class="section">
             <div class="section-title">👥 用户概览</div>
             <div class="section-body" id="opsUsers"></div>
+        </div>
+    </div>
+
+    <!-- ===== 投放链接 ===== -->
+    <div id="page-links" class="container hidden">
+        <div class="section" style="margin-bottom:12px">
+            <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span>🔗 投放链接</span>
+                <button class="btn btn-primary btn-sm" onclick="showLinkProductModal()">+ 添加产品</button>
+            </div>
+        </div>
+        <div id="linkProductTabs" style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap"></div>
+        <div id="linkProductContent" class="section hidden">
+            <div class="section-body">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:#f5f5f7;border-radius:8px">
+                    <span style="font-size:13px;color:#86868b;flex-shrink:0">初始链接</span>
+                    <code id="linkBaseUrl" style="font-size:12px;flex:1;word-break:break-all"></code>
+                    <button class="btn btn-sm" onclick="editLinkProduct()" style="flex-shrink:0">编辑</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteLinkProduct()" style="flex-shrink:0">删除</button>
+                </div>
+                <div style="margin-bottom:16px">
+                    <div style="font-size:13px;color:#86868b;margin-bottom:6px">粘贴新域名（换行 / 逗号 / 空格分隔均可）<span id="linkDomainCount" style="margin-left:4px"></span></div>
+                    <textarea id="linkDomainInput" placeholder="例如：&#10;ao9w6u7e.oy5tvzgh.com&#10;tuvo9v1i.znp9kzr7.com&#10;y1quyh4n.wvo8y4k6.com" oninput="updateDomainCount()" style="width:100%;height:100px;font-family:monospace;font-size:13px;padding:10px;border:1px solid #d2d2d7;border-radius:8px;resize:vertical;line-height:1.6"></textarea>
+                    <div style="margin-top:8px">
+                        <button class="btn btn-primary" id="btnGenerate" onclick="generateLinks()" style="padding:8px 24px;font-size:14px">生成链接</button>
+                    </div>
+                    <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <span style="font-size:12px;color:#86868b">筛选</span>
+                        <span style="display:inline-flex;gap:0;font-size:12px">
+                            <button id="filterActive" class="btn btn-sm" onclick="filterLinks('active')" style="border-radius:6px 0 0 6px">可用</button>
+                            <button id="filterExpired" class="btn btn-sm" onclick="filterLinks('expired')" style="border-radius:0 6px 6px 0">失效</button>
+                        </span>
+                        <span style="color:#d2d2d7;font-size:14px;margin:0 4px">|</span>
+                        <button class="btn btn-sm" onclick="batchToggleExpired(true)">全部失效</button>
+                        <button class="btn btn-sm" onclick="batchToggleExpired(false)">全部恢复</button>
+                        <button class="btn btn-sm" onclick="copyAllLinks()">一键复制</button>
+                        <button class="btn btn-sm btn-danger" onclick="clearAllLinks()">清空链接</button>
+                    </div>
+                </div>
+                <div id="linkResults" style="max-height:480px;overflow-y:auto"></div>
+            </div>
+        </div>
+        <div id="linkNoProduct" style="text-align:center;padding:60px;color:#86868b">
+            <p style="font-size:40px;margin:0">🔗</p>
+            <p style="margin:12px 0">还没创建链接产品</p>
+            <button class="btn btn-primary" onclick="showLinkProductModal()">创建链接产品 →</button>
         </div>
     </div>
 
@@ -226,8 +273,18 @@
         <div class="section">
             <div class="section-title">👥 用户管理</div>
             <div class="section-body">
-                <div id="adminUserList"></div>
-                <div class="form-row" style="margin-top:12px">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead>
+                        <tr style="border-bottom:2px solid #d2d2d7;text-align:left;color:#86868b;font-size:12px;background:#f5f5f7">
+                            <th style="padding:10px 16px;width:60px;font-weight:500">ID</th>
+                            <th style="padding:10px 16px;font-weight:500">用户名</th>
+                            <th style="padding:10px 16px;width:90px;font-weight:500">角色</th>
+                            <th style="padding:10px 16px;width:220px;font-weight:500">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminUserList"></tbody>
+                </table>
+                <div class="form-row" style="margin-top:14px">
                     <input id="adminNewUser" placeholder="新用户名" style="max-width:140px">
                     <input id="adminNewPwd" type="password" placeholder="密码" style="max-width:140px">
                     <button class="btn btn-primary btn-sm" onclick="adminAddUser()">添加用户</button>
@@ -291,36 +348,83 @@
             </div>
             <div style="font-size:14px;line-height:1.8;color:#1d1d1f">
                 <div style="margin-bottom:24px">
+                    <div style="font-weight:700;font-size:16px">v1.1.0 <span style="font-weight:400;font-size:13px;color:#86868b">2026-06-01</span></div>
+                    <div style="border-top:1px solid #e5e5ea;margin:10px 0"></div>
+                    <ul style="margin:0 0 0 0;padding-left:18px">
+                        <li>新增投放链接工具页面：粘贴域名一键生成备用广告链接</li>
+                        <li>链接支持点击标记失效 / 恢复，链接支持点击复制</li>
+                        <li>新增全部失效 / 全部恢复批量操作</li>
+                        <li>新增域名输入框粘贴后实时显示数量</li>
+                        <li>新增操作按钮状态提示弹窗</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom:24px">
                     <div style="font-weight:700;font-size:16px">v1.0.1 <span style="font-weight:400;font-size:13px;color:#86868b">2026-05-29</span></div>
                     <div style="border-top:1px solid #e5e5ea;margin:10px 0"></div>
                     <ul style="margin:0 0 0 0;padding-left:18px">
-                        <li>支持晴天产品（ads27b.com）接入</li>
-                        <li>产品独立采集，单产品一键刷新</li>
-                        <li>新用户空状态引导提示</li>
-                        <li>定时任务页显示状态和上次执行时间</li>
-                        <li>数据页产品数据一键清空</li>
-                        <li>用户管理独立页面</li>
-                        <li>导航栏改名：数据看板 / 任务配置 / 用户管理</li>
-                        <li>页面加载和服务器响应速度大幅提升</li>
-                        <li>定时调度更精准，不再重复采集</li>
-                        <li>修复多项使用细节和稳定性问题</li>
+                        <li>新增晴天产品类型支持</li>
+                        <li>新增产品独立采集，点击 ⚡ 单产品刷新</li>
+                        <li>新用户首次进入有添加产品引导</li>
+                        <li>定时任务页可查看执行状态和上次时间</li>
+                        <li>数据页支持按日期筛选</li>
+                        <li>修复多个稳定性问题</li>
                     </ul>
                 </div>
                 <div style="margin-bottom:8px">
                     <div style="font-weight:700;font-size:16px">v1.0.0 <span style="font-weight:400;font-size:13px;color:#86868b">2026-05-28</span></div>
                     <div style="border-top:1px solid #e5e5ea;margin:10px 0"></div>
                     <ul style="margin:0 0 0 0;padding-left:18px">
-                        <li>多用户数据采集系统正式上线</li>
-                        <li>支持普通产品数据查询与定时采集</li>
-                        <li>多用户数据隔离，各自独立管理</li>
+                        <li>多用户数据采集系统上线</li>
+                        <li>支持产品数据查询与定时采集</li>
+                        <li>各用户数据隔离，独立管理</li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- ===== 链接产品弹窗 ===== -->
+    <div id="linkProductModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3 id="linkModalTitle">添加链接产品</h3>
+            <div class="form-row"><label>产品名称</label><input id="linkProductName" placeholder="如 82B、G45" style="flex:2"></div>
+            <div class="form-row"><label>初始链接</label><input id="linkProductUrl" placeholder="如 https://xxx.com?ch=123&fbPixelId=456" style="flex:3"></div>
+            <input type="hidden" id="linkProductEditId" value="">
+            <div class="btn-row">
+                <button class="btn" onclick="closeLinkProductModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveLinkProduct()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 用户编辑弹窗 ===== -->
+    <div id="userEditModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>编辑用户</h3>
+            <div class="form-row"><label>用户名</label><input id="userEditName" placeholder="输入新用户名" style="flex:2"></div>
+            <input type="hidden" id="userEditOldName" value="">
+            <div class="btn-row">
+                <button class="btn" onclick="closeUserEditModal()">取消</button>
+                <button class="btn btn-primary" onclick="adminEditUser()">保存</button>
+            </div>
+        </div>
+    </div>
+    <div id="userPwdModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>重置密码</h3>
+            <div class="form-row"><label>用户</label><span id="userPwdTarget" style="font-weight:600"></span></div>
+            <div class="form-row"><label>新密码</label><input id="userPwdNew" type="password" placeholder="至少4位" style="flex:2"></div>
+            <input type="hidden" id="userPwdUsername" value="">
+            <div class="btn-row">
+                <button class="btn" onclick="closeUserPwdModal()">取消</button>
+                <button class="btn btn-primary" onclick="adminResetPwd()">确认重置</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API = location.origin;
+        const VERSION = '1.1.0';
         let _products = [];
         let _editingName = null;
         let _isAdmin = false;
@@ -348,6 +452,10 @@
                         document.getElementById('tabUsers').classList.add('hidden');
                     }
                     loadData();
+                    var seen = localStorage.getItem('seenVersion');
+                    if (seen !== VERSION) {
+                        setTimeout(function() { openChangelog(); localStorage.setItem('seenVersion', VERSION); }, 500);
+                    }
                 })
                 .catch(() => { localStorage.removeItem('token'); window.location.href = '/login.html'; });
         })();
@@ -369,19 +477,19 @@
 
         // ============ Tab 切换 ============
         function switchTab(tab) {
-            const isData = (tab === 'data');
-            const isSettings = (tab === 'settings');
-            document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (isData && i===0) || (isSettings && i===1)));
-            document.getElementById('page-data').classList.toggle('hidden', !isData);
-            document.getElementById('page-settings').classList.toggle('hidden', !isSettings);
-            var isUsers = tab === 'users';
-            document.getElementById('page-users').classList.toggle('hidden', !isUsers);
-            var isOps = tab === 'ops';
-            document.getElementById('page-ops').classList.toggle('hidden', !isOps);
-            if (isSettings) loadSettings();
-            if (isData) loadData();
-            if (isUsers) loadAdminUsers();
-            if (isOps) loadOps();
+            document.querySelectorAll('.tab').forEach(function(t) {
+                t.classList.toggle('active', t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'" + tab + "'") !== -1);
+            });
+            document.getElementById('page-data').classList.toggle('hidden', tab !== 'data');
+            document.getElementById('page-settings').classList.toggle('hidden', tab !== 'settings');
+            document.getElementById('page-users').classList.toggle('hidden', tab !== 'users');
+            document.getElementById('page-ops').classList.toggle('hidden', tab !== 'ops');
+            document.getElementById('page-links').classList.toggle('hidden', tab !== 'links');
+            if (tab === 'settings') loadSettings();
+            if (tab === 'data') loadData();
+            if (tab === 'users') loadAdminUsers();
+            if (tab === 'ops') loadOps();
+            if (tab === 'links') loadLinks();
         }
 
         // ============ 数据页 ============
@@ -415,41 +523,6 @@
                 });
                 if (prevP && _products.some(p => p.name === prevP)) pSel.value = prevP;
 
-        function switchView() {
-            var target = document.getElementById('viewAsSelect').value;
-            if (!target) return;
-            // 保存管理员 token，方便之后返回
-            var adminToken = localStorage.getItem('token');
-            if (adminToken) sessionStorage.setItem('admin_token', adminToken);
-            // 拿到目标用户 token
-            api({ url: '/api/admin/impersonate', method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({username: target}) })
-                .then(d => {
-                    if (d.ok) {
-                        localStorage.setItem('token', d.token);
-                        window.location.reload();
-                    } else alert(d.error || '切换失败');
-                });
-        }
-
-        // 页面加载时检测是否在模拟其他用户
-        function checkImpersonation() {
-            var adminToken = sessionStorage.getItem('admin_token');
-            if (adminToken) {
-                // 显示返回横幅
-                var banner = document.createElement('div');
-                banner.style.cssText = 'background:#fff3e0;color:#e65100;text-align:center;padding:6px;font-size:13px;position:sticky;top:0;z-index:20;border-bottom:1px solid #ffe0b2';
-                banner.innerHTML = '🔍 正在以 <b>' + esc(_username) + '</b> 身份查看 | <a href="javascript:returnToAdmin()" style="color:#007aff;cursor:pointer;font-weight:600">返回管理员</a>';
-                document.body.insertBefore(banner, document.body.firstChild);
-            }
-        }
-        function returnToAdmin() {
-            localStorage.setItem('token', sessionStorage.getItem('admin_token'));
-            sessionStorage.removeItem('admin_token');
-            window.location.reload();
-        }
-
-        // 数据看板状态行更新时间
                 // 显示定时采集状态
                 var ci = res.last_cron || {};
                 var cronEl = document.getElementById('cronInfo');
@@ -465,6 +538,35 @@
 
                 renderData();
             });
+        }
+
+        function switchView() {
+            var target = document.getElementById('viewAsSelect').value;
+            if (!target) return;
+            var adminToken = localStorage.getItem('token');
+            if (adminToken) sessionStorage.setItem('admin_token', adminToken);
+            api({ url: '/api/admin/impersonate', method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({username: target}) })
+                .then(d => {
+                    if (d.ok) { localStorage.setItem('token', d.token); window.location.reload(); }
+                    else alert(d.error || '切换失败');
+                });
+        }
+
+        function checkImpersonation() {
+            var adminToken = sessionStorage.getItem('admin_token');
+            if (adminToken) {
+                var banner = document.createElement('div');
+                banner.style.cssText = 'background:#fff3e0;color:#e65100;text-align:center;padding:6px;font-size:13px;position:sticky;top:0;z-index:20;border-bottom:1px solid #ffe0b2';
+                banner.innerHTML = '🔍 正在以 <b>' + esc(_username) + '</b> 身份查看 | <a href="javascript:returnToAdmin()" style="color:#007aff;cursor:pointer;font-weight:600">返回管理员</a>';
+                document.body.insertBefore(banner, document.body.firstChild);
+            }
+        }
+        
+        function returnToAdmin() {
+            localStorage.setItem('token', sessionStorage.getItem('admin_token'));
+            sessionStorage.removeItem('admin_token');
+            window.location.reload();
         }
 
         function renderData() {
@@ -876,7 +978,7 @@
             api({ url: '/api/admin/users' }).then(r => {
                 if (!r.ok) return;
                 var sel = document.getElementById('viewAsSelect');
-                sel.innerHTML = '<option value="">切换至...</option>';
+                sel.innerHTML = '<option value="">查看我的</option>';
                 r.users.forEach(function(u) {
                     if (u.username !== _username) {
                         sel.innerHTML += '<option value="' + escJs(u.username) + '">' + esc(u.username) + '</option>';
@@ -890,17 +992,64 @@
         function loadAdminUsers() {
             api({ url: '/api/admin/users' }).then(res => {
                 var list = document.getElementById('adminUserList');
-                if (!res.ok) { list.innerHTML = '<div class="empty">权限不足</div>'; return; }
+                if (!res.ok) { list.innerHTML = '<tr><td colspan="4" class="empty">权限不足</td></tr>'; return; }
                 var users = res.users || [];
-                if (!users.length) { list.innerHTML = '<div class="empty">暂无用户</div>'; return; }
-                list.innerHTML = users.map(u =>
-                    `<div class="product-card">
-                        <div class="actions">${u.username==='admin'?'':`<button class="btn btn-sm btn-danger" onclick="adminDeleteUser('${escJs(u.username)}')">删除</button>`}</div>
-                        <div class="name">${esc(u.username)} ${u.is_admin?'👑':''}</div>
-                        <div class="meta">ID: ${u.id}</div>
-                    </div>`
-                ).join('');
+                if (!users.length) { list.innerHTML = '<tr><td colspan="4" class="empty">暂无用户</td></tr>'; return; }
+                list.innerHTML = users.map(function(u, i) {
+                    var bg = i % 2 === 0 ? '' : 'background:#fafafa';
+                    return '<tr style="border-bottom:1px solid #f0f0f0;' + bg + '" onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\'' + (i % 2 === 0 ? '' : '#fafafa') + '\'">' +
+                    '<td style="padding:10px 16px;color:#86868b">' + u.id + '</td>' +
+                    '<td style="padding:10px 16px;font-weight:500">' + esc(u.username) + '</td>' +
+                    '<td style="padding:10px 16px"><span style="display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;vertical-align:middle;white-space:nowrap;' + (u.is_admin ? 'background:#e6f1fb;color:#185fa5' : 'background:#f0f0f0;color:#86868b') + '">' + (u.is_admin ? '管理员' : '普通用户') + '</span></td>' +
+                    '<td style="padding:10px 16px">' +
+                        (u.username === 'admin' ? '<span style="color:#86868b;font-size:12px">系统保留</span>' :
+                        '<button class="btn btn-sm" onclick="showUserEdit(\'' + escJs(u.username) + '\')" style="margin-right:4px">编辑</button>' +
+                        '<button class="btn btn-sm" onclick="showUserPwd(\'' + escJs(u.username) + '\')" style="margin-right:4px">重置密码</button>' +
+                        '<button class="btn btn-sm btn-danger" onclick="adminDeleteUser(\'' + escJs(u.username) + '\')">删除</button>') +
+                    '</td></tr>';
+                }).join('');
             });
+        }
+
+        function showUserEdit(username) {
+            document.getElementById('userEditOldName').value = username;
+            document.getElementById('userEditName').value = username;
+            document.getElementById('userEditModal').classList.remove('hidden');
+        }
+        function closeUserEditModal() {
+            document.getElementById('userEditModal').classList.add('hidden');
+        }
+        function adminEditUser() {
+            var oldName = document.getElementById('userEditOldName').value;
+            var newName = document.getElementById('userEditName').value.trim();
+            if (!newName) { alert('请输入新用户名'); return; }
+            api({ url: '/api/admin/users/' + encodeURIComponent(oldName), method: 'PUT',
+                headers: {'Content-Type':'application/json'}, body: JSON.stringify({newUsername: newName}) })
+                .then(d => {
+                    if (d.ok) { closeUserEditModal(); loadAdminUsers(); }
+                    else alert(d.error || '修改失败');
+                });
+        }
+
+        function showUserPwd(username) {
+            document.getElementById('userPwdUsername').value = username;
+            document.getElementById('userPwdTarget').textContent = username;
+            document.getElementById('userPwdNew').value = '';
+            document.getElementById('userPwdModal').classList.remove('hidden');
+        }
+        function closeUserPwdModal() {
+            document.getElementById('userPwdModal').classList.add('hidden');
+        }
+        function adminResetPwd() {
+            var username = document.getElementById('userPwdUsername').value;
+            var pwd = document.getElementById('userPwdNew').value;
+            if (pwd.length < 4) { alert('密码至少4位'); return; }
+            api({ url: '/api/admin/users/' + encodeURIComponent(username) + '/reset-password', method: 'POST',
+                headers: {'Content-Type':'application/json'}, body: JSON.stringify({password: pwd}) })
+                .then(d => {
+                    if (d.ok) { closeUserPwdModal(); alert('密码已重置'); }
+                    else alert(d.error || '重置失败');
+                });
         }
         function adminAddUser() {
             var name = document.getElementById('adminNewUser').value.trim();
@@ -946,7 +1095,325 @@
                 .finally(() => { btn.disabled = false; btn.textContent = '⚡ 立即采集'; });
         }
 
+        // ============ 投放链接 ============
+        var _linkProducts = [];
+        var _activeLinkId = null;
+        var _linkFilter = 'active';
+
+        function loadLinks() {
+            api({ url: '/api/link-products' }).then(res => {
+                if (!res.ok) return;
+                _linkProducts = res.products || [];
+                renderLinkPage();
+            });
+        }
+
+        function renderLinkPage() {
+            var tabs = document.getElementById('linkProductTabs');
+            var content = document.getElementById('linkProductContent');
+            var noProduct = document.getElementById('linkNoProduct');
+            tabs.innerHTML = '';
+            if (!_linkProducts.length) {
+                content.classList.add('hidden');
+                noProduct.classList.remove('hidden');
+                return;
+            }
+            noProduct.classList.add('hidden');
+            if (!_activeLinkId || !_linkProducts.some(function(p) { return p.id === _activeLinkId; })) {
+                _activeLinkId = _linkProducts[0].id;
+            }
+            _linkProducts.forEach(function(p) {
+                var tab = document.createElement('div');
+                tab.className = 'tab';
+                if (p.id === _activeLinkId) { tab.classList.add('active'); tab.style.fontWeight = '600'; tab.style.background = '#f0f4ff'; }
+                tab.textContent = p.name;
+                tab.onclick = function() { switchLinkProduct(p.id); };
+                tabs.appendChild(tab);
+            });
+            var active = _linkProducts.find(function(p) { return p.id === _activeLinkId; });
+            if (active) {
+                content.classList.remove('hidden');
+                document.getElementById('linkBaseUrl').textContent = active.baseUrl || '';
+                renderLinkResults(active);
+            } else {
+                content.classList.add('hidden');
+            }
+        }
+
+        function switchLinkProduct(id) {
+            _activeLinkId = id;
+            _linkFilter = 'active';
+            updateLinkFilterUI();
+            renderLinkPage();
+        }
+
+        function renderLinkResults(product) {
+            var container = document.getElementById('linkResults');
+            var domains = product.domains || [];
+            var expired = product.expired || {};
+            if (!domains.length) {
+                container.innerHTML = '<div style="color:#86868b;font-size:13px;padding:20px;text-align:center">暂无生成链接，请粘贴域名后点击「生成链接」</div>';
+                return;
+            }
+            var baseUrl = product.baseUrl || '';
+            var parsed = parseBaseUrl(baseUrl);
+            var filtered = domains;
+            if (_linkFilter === 'active') filtered = domains.filter(function(d) { return !expired[d]; });
+            if (_linkFilter === 'expired') filtered = domains.filter(function(d) { return expired[d]; });
+            var html = '<div style="font-size:12px;color:#86868b;margin-bottom:8px">共 <b>' + filtered.length + '</b> 条链接</div>';
+            filtered.forEach(function(domain, idx) {
+                var fullUrl = buildFullUrl(parsed, domain);
+                var isExpired = !!expired[domain];
+                var bg = isExpired ? 'background:#fff0f0' : (idx % 2 === 0 ? '' : 'background:#fafafa');
+                html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f0f0f0;' + bg + '">';
+                html += '<button class="btn btn-sm ' + (isExpired ? 'btn-danger' : '') + '" onclick="toggleLinkStatus(\'' + escJs(domain) + '\')" style="flex-shrink:0;font-size:11px;min-width:60px">' + (isExpired ? '恢复' : '标记失效') + '</button>';
+                html += '<code style="font-size:12px;flex:1;word-break:break-all;' + (isExpired ? 'color:#e24b4a;text-decoration:line-through' : 'color:#1d1d1f') + '">' + esc(fullUrl) + '</code>';
+                html += '<button class="btn btn-sm" onclick="copyText(\'' + escJs(fullUrl) + '\')" style="flex-shrink:0;font-size:11px">复制</button>';
+                html += '</div>';
+            });
+            if (!filtered.length) {
+                html += '<div style="color:#86868b;font-size:13px;padding:20px;text-align:center">当前筛选条件下无链接</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function parseBaseUrl(url) {
+            url = (url || '').trim();
+            var m = url.match(/^(https?:\/\/)([^\/\?#]+)(\/[^\?#]*)?(\?[^#]*)?(#.*)?$/);
+            if (m) {
+                return { protocol: m[1], domain: m[2], path: m[3] || '', query: m[4] || '', hash: m[5] || '' };
+            }
+            return { protocol: '', domain: url, path: '', query: '', hash: '' };
+        }
+
+        function buildFullUrl(parsed, domain) {
+            domain = (domain || '').trim().replace(/^https?:\/\//, '');
+            return parsed.protocol + domain + parsed.path + parsed.query + parsed.hash;
+        }
+
+        function updateDomainCount() {
+            var raw = document.getElementById('linkDomainInput').value;
+            var count = raw.split(/[\n,;\s]+/).map(function(s) { return s.trim().replace(/^https?:\/\//, ''); }).filter(Boolean).length;
+            document.getElementById('linkDomainCount').textContent = count ? '(' + count + ' 个域名)' : '';
+        }
+
+        function generateLinks() {
+            if (!_activeLinkId) return;
+            var btn = document.getElementById('btnGenerate');
+            btn.disabled = true; btn.textContent = '生成中...';
+            var active = _linkProducts.find(function(p) { return p.id === _activeLinkId; });
+            if (!active) { btn.disabled = false; btn.textContent = '生成链接'; return; }
+            var raw = document.getElementById('linkDomainInput').value;
+            var newDomains = raw.split(/[\n,;\s]+/).map(function(s) { return s.trim().replace(/^https?:\/\//, ''); }).filter(Boolean);
+            if (!newDomains.length) { alert('请粘贴域名列表'); btn.disabled = false; btn.textContent = '生成链接'; return; }
+            var merged = (active.domains || []).slice();
+            newDomains.forEach(function(d) { if (merged.indexOf(d) === -1) merged.push(d); });
+            api({ url: '/api/link-products/' + _activeLinkId, method: 'PUT', body: JSON.stringify({ domains: merged }), headers: { 'Content-Type': 'application/json' } })
+                .then(function(d) {
+                    if (d.ok) {
+                        _linkProducts = _linkProducts.map(function(p) { return p.id === _activeLinkId ? d.product : p; });
+                        _linkFilter = 'active';
+                        updateLinkFilterUI();
+                        renderLinkResults(d.product);
+                        document.getElementById('linkDomainInput').value = '';
+                        updateDomainCount();
+                    } else { alert(d.error || '保存失败'); }
+                })
+                .finally(function() { btn.disabled = false; btn.textContent = '生成链接'; });
+        }
+
+        function toggleLinkStatus(domain) {
+            if (!_activeLinkId) return;
+            var active = _linkProducts.find(function(p) { return p.id === _activeLinkId; });
+            if (!active) return;
+            var expired = Object.assign({}, active.expired || {});
+            if (expired[domain]) { delete expired[domain]; }
+            else { expired[domain] = true; }
+            api({ url: '/api/link-products/' + _activeLinkId, method: 'PUT', body: JSON.stringify({ expired: expired }), headers: { 'Content-Type': 'application/json' } })
+                .then(function(d) {
+                    if (d.ok) {
+                        _linkProducts = _linkProducts.map(function(p) { return p.id === _activeLinkId ? d.product : p; });
+                        renderLinkResults(d.product);
+                        showToast(expired[domain] ? '已标记失效' : '已恢复');
+                    }
+                });
+        }
+
+        function copyAllLinks() {
+            if (!_activeLinkId) return;
+            var active = _linkProducts.find(function(p) { return p.id === _activeLinkId; });
+            if (!active || !active.domains.length) { showToast('暂无链接'); return; }
+            var parsed = parseBaseUrl(active.baseUrl || '');
+            var expired = active.expired || {};
+            var urls = active.domains.filter(function(d) { return !expired[d]; }).map(function(d) { return buildFullUrl(parsed, d); });
+            if (!urls.length) { showToast('暂无可用链接'); return; }
+            var text = urls.join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function() { showToast('已复制 ' + urls.length + ' 条链接'); });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); showToast('已复制 ' + urls.length + ' 条链接'); } catch(e) { showToast('复制失败'); }
+                document.body.removeChild(ta);
+            }
+        }
+
+        function clearAllLinks() {
+            if (!_activeLinkId) return;
+            if (!confirm('确定清空当前产品的所有链接？此操作不可恢复。')) return;
+            api({ url: '/api/link-products/' + _activeLinkId, method: 'PUT', body: JSON.stringify({ domains: [], expired: {} }), headers: { 'Content-Type': 'application/json' } })
+                .then(function(d) {
+                    if (d.ok) {
+                        _linkProducts = _linkProducts.map(function(p) { return p.id === _activeLinkId ? d.product : p; });
+                        renderLinkResults(d.product);
+                        showToast('已清空');
+                    } else { alert(d.error || '清空失败'); }
+                });
+        }
+
+        function batchToggleExpired(mark) {
+            if (!_activeLinkId) return;
+            var active = _linkProducts.find(function(p) { return p.id === _activeLinkId; });
+            if (!active || !active.domains.length) return;
+            var expired = Object.assign({}, active.expired || {});
+            active.domains.forEach(function(d) {
+                if (mark) expired[d] = true; else delete expired[d];
+            });
+            api({ url: '/api/link-products/' + _activeLinkId, method: 'PUT', body: JSON.stringify({ expired: expired }), headers: { 'Content-Type': 'application/json' } })
+                .then(function(d) {
+                    if (d.ok) {
+                        _linkProducts = _linkProducts.map(function(p) { return p.id === _activeLinkId ? d.product : p; });
+                        renderLinkResults(d.product);
+                        showToast(mark ? '已全部标记失效' : '已全部恢复');
+                    }
+                });
+        }
+
+        function filterLinks(filter) {
+            _linkFilter = filter;
+            updateLinkFilterUI();
+            var active = _linkProducts.find(function(p) { return p.id === _activeLinkId; });
+            if (active) renderLinkResults(active);
+        }
+
+        function updateLinkFilterUI() {
+            ['active','expired'].forEach(function(f) {
+                var el = document.getElementById('filter'+f.charAt(0).toUpperCase()+f.slice(1));
+                if (!el) return;
+                if (_linkFilter === f) {
+                    el.style.background = '#007aff';
+                    el.style.color = '#fff';
+                    el.style.borderColor = '#007aff';
+                } else {
+                    el.style.background = '#fff';
+                    el.style.color = '#1d1d1f';
+                    el.style.borderColor = '#d2d2d7';
+                }
+            });
+        }
+
+        function showLinkProductModal(editId) {
+            document.getElementById('linkProductName').value = '';
+            document.getElementById('linkProductUrl').value = '';
+            document.getElementById('linkProductEditId').value = '';
+            if (editId) {
+                var p = _linkProducts.find(function(x) { return x.id === editId; });
+                if (p) {
+                    document.getElementById('linkModalTitle').textContent = '编辑链接产品';
+                    document.getElementById('linkProductName').value = p.name;
+                    document.getElementById('linkProductUrl').value = p.baseUrl;
+                    document.getElementById('linkProductEditId').value = editId;
+                }
+            } else {
+                document.getElementById('linkModalTitle').textContent = '添加链接产品';
+            }
+            document.getElementById('linkProductModal').classList.remove('hidden');
+        }
+
+        function closeLinkProductModal() {
+            document.getElementById('linkProductModal').classList.add('hidden');
+        }
+
+        function saveLinkProduct() {
+            var name = document.getElementById('linkProductName').value.trim();
+            var url = document.getElementById('linkProductUrl').value.trim();
+            var editId = document.getElementById('linkProductEditId').value;
+            if (!name) { alert('请输入产品名称'); return; }
+            if (!url) { alert('请输入初始链接'); return; }
+            var data = { name: name, baseUrl: url };
+            if (editId) {
+                api({ url: '/api/link-products/' + editId, method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } })
+                    .then(function(d) {
+                        if (d.ok) {
+                            _linkProducts = _linkProducts.map(function(p) { return p.id === parseInt(editId) ? d.product : p; });
+                            closeLinkProductModal();
+                            renderLinkPage();
+                        } else { alert(d.error || '保存失败'); }
+                    });
+            } else {
+                api({ url: '/api/link-products', method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } })
+                    .then(function(d) {
+                        if (d.ok) {
+                            _linkProducts.push(d.product);
+                            _activeLinkId = d.product.id;
+                            closeLinkProductModal();
+                            renderLinkPage();
+                        } else { alert(d.error || '创建失败'); }
+                    });
+            }
+        }
+
+        function editLinkProduct() {
+            if (!_activeLinkId) return;
+            showLinkProductModal(_activeLinkId);
+        }
+
+        function deleteLinkProduct() {
+            if (!_activeLinkId) return;
+            if (!confirm('确定删除该链接产品及其所有链接？')) return;
+            api({ url: '/api/link-products/' + _activeLinkId, method: 'DELETE' })
+                .then(function(d) {
+                    if (d.ok) {
+                        _linkProducts = _linkProducts.filter(function(p) { return p.id !== _activeLinkId; });
+                        _activeLinkId = null;
+                        renderLinkPage();
+                    } else { alert(d.error || '删除失败'); }
+                });
+        }
+
         // ============ 工具函数 ============
+        function copyText(text) {
+            var done = function() { showToast('已复制'); };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(function() { fallbackCopy(text, done); });
+            } else {
+                fallbackCopy(text, done);
+            }
+        }
+        function fallbackCopy(text, done) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); done(); } catch(e) {}
+            document.body.removeChild(ta);
+        }
+        function showToast(msg) {
+            var t = document.getElementById('toast');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = 'toast';
+                t.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1d1d1f;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;z-index:999;pointer-events:none;transition:opacity 0.3s';
+                document.body.appendChild(t);
+            }
+            t.textContent = msg;
+            t.style.opacity = '1';
+            clearTimeout(t._timer);
+            t._timer = setTimeout(function() { t.style.opacity = '0'; }, 1500);
+        }
+
         function esc(s) {
             if (!s) return '';
             const el = document.createElement('span');

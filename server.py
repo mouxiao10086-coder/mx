@@ -165,6 +165,10 @@ def get_user_data(username, date=None):
 # ============ HTML 解析 ============
 def parse_html(html):
     rows = []
+    # 修复缺失 <tr> 标签的数据行（PHP 生成的不规范 HTML）
+    html = re.sub(r'<tbody>\s*([^<{])', r'<tbody><tr>\1', html)
+    # 清除 <tr> 和第一个 <td> 之间的非标签文本（如 "车"）
+    html = re.sub(r'(<tr[^>]*>)[^<]*<td', r'\1<td', html)
     pattern = re.compile(
         r'<tr[^>]*>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>([\d,]+)</td>\s*<td[^>]*>([\d,]+)</td>\s*<td[^>]*>([\d,]+)</td>\s*</tr>',
         re.DOTALL,
@@ -268,6 +272,13 @@ def save_daily_record(username, product_name, records):
 
 
 # ============ 静态文件 ============
+@app.after_request
+def add_cache_headers(response):
+    if request.path in ("/", "/login.html"):
+        response.headers["Cache-Control"] = "public, max-age=300"
+    return response
+
+
 @app.route("/")
 def index():
     return send_from_directory("web", "index.html")
@@ -761,8 +772,10 @@ def load_cron():
 
 def save_cron(data):
     DEFAULT_ROOT.mkdir(parents=True, exist_ok=True)
-    with open(CRON_FILE, "w") as f:
+    tmp = CRON_FILE.with_suffix(".tmp")
+    with open(tmp, "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, CRON_FILE)
 
 
 def update_system_cron():
@@ -1057,6 +1070,149 @@ def api_admin_delete_user(username):
     return jsonify(ok=True)
 
 
+@app.route("/api/admin/users/<username>", methods=["PUT"])
+def api_admin_edit_user(username):
+    current_user, err = require_auth()
+    if err:
+        return err
+    users = load_users()
+    current = next((u for u in users["users"] if u["username"] == current_user), None)
+    if not current or not current["is_admin"]:
+        return jsonify(ok=False, error="需要管理员权限")
+    body = request.get_json(force=True)
+    new_name = (body.get("newUsername") or "").strip()
+    if not new_name:
+        return jsonify(ok=False, error="请输入新用户名")
+    if new_name == username:
+        return jsonify(ok=True)
+    if any(u["username"] == new_name for u in users["users"]):
+        return jsonify(ok=False, error="用户名已存在")
+    target = next((u for u in users["users"] if u["username"] == username), None)
+    if not target:
+        return jsonify(ok=False, error="用户不存在")
+    target["username"] = new_name
+    save_users(users)
+    return jsonify(ok=True)
+
+
+@app.route("/api/admin/users/<username>/reset-password", methods=["POST"])
+def api_admin_reset_password(username):
+    current_user, err = require_auth()
+    if err:
+        return err
+    users = load_users()
+    current = next((u for u in users["users"] if u["username"] == current_user), None)
+    if not current or not current["is_admin"]:
+        return jsonify(ok=False, error="需要管理员权限")
+    body = request.get_json(force=True)
+    new_pwd = (body.get("password") or "").strip()
+    if len(new_pwd) < 4:
+        return jsonify(ok=False, error="密码至少4位")
+    target = next((u for u in users["users"] if u["username"] == username), None)
+    if not target:
+        return jsonify(ok=False, error="用户不存在")
+    target["password_hash"] = hashlib.sha256(new_pwd.encode()).hexdigest()
+    save_users(users)
+    return jsonify(ok=True)
+
+
+# ============ 链接管理 ============
+LINK_PRODUCTS_FILE = DEFAULT_ROOT / "link_products.json"
+
+
+def load_link_products():
+    if not LINK_PRODUCTS_FILE.exists():
+        return {}
+    try:
+        with open(LINK_PRODUCTS_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def save_link_products(data):
+    LINK_PRODUCTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = LINK_PRODUCTS_FILE.with_suffix(".tmp")
+    with open(tmp, "w") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, LINK_PRODUCTS_FILE)
+
+
+@app.route("/api/link-products", methods=["GET"])
+def api_link_products():
+    username, err = require_auth()
+    if err:
+        return err
+    data = load_link_products()
+    return jsonify(ok=True, products=data.get(username, []))
+
+
+@app.route("/api/link-products", methods=["POST"])
+def api_link_add():
+    username, err = require_auth()
+    if err:
+        return err
+    body = request.get_json(force=True)
+    name = (body.get("name") or "").strip()
+    base_url = (body.get("baseUrl") or "").strip()
+    if not name:
+        return jsonify(ok=False, error="请输入产品名称")
+    if not base_url:
+        return jsonify(ok=False, error="请输入初始链接")
+    data = load_link_products()
+    user_products = data.get(username, [])
+    new_id = max((p.get("id", 0) for p in user_products), default=0) + 1
+    product = {
+        "id": new_id,
+        "name": name,
+        "baseUrl": base_url,
+        "domains": [],
+        "expired": {},
+        "createdAt": datetime.now(BEIJING_TZ).isoformat(),
+    }
+    user_products.append(product)
+    data[username] = user_products
+    save_link_products(data)
+    return jsonify(ok=True, product=product)
+
+
+@app.route("/api/link-products/<int:pid>", methods=["PUT"])
+def api_link_update(pid):
+    username, err = require_auth()
+    if err:
+        return err
+    body = request.get_json(force=True)
+    data = load_link_products()
+    user_products = data.get(username, [])
+    product = next((p for p in user_products if p["id"] == pid), None)
+    if not product:
+        return jsonify(ok=False, error="产品不存在")
+    if "name" in body:
+        product["name"] = body["name"].strip()
+    if "baseUrl" in body:
+        product["baseUrl"] = body["baseUrl"].strip()
+    if "domains" in body:
+        product["domains"] = body["domains"]
+    if "expired" in body:
+        product["expired"] = body["expired"]
+    data[username] = user_products
+    save_link_products(data)
+    return jsonify(ok=True, product=product)
+
+
+@app.route("/api/link-products/<int:pid>", methods=["DELETE"])
+def api_link_delete(pid):
+    username, err = require_auth()
+    if err:
+        return err
+    data = load_link_products()
+    user_products = data.get(username, [])
+    user_products = [p for p in user_products if p["id"] != pid]
+    data[username] = user_products
+    save_link_products(data)
+    return jsonify(ok=True)
+
+
 # ============ 启动 ============
 if __name__ == "__main__":
     # 确保默认管理员存在
@@ -1100,7 +1256,7 @@ curl -s -X POST "http://localhost:8991/api/fetch-now" \\
     try:
         from waitress import serve
         print("使用 waitress 多线程服务器")
-        serve(app, host="127.0.0.1", port=8991, threads=4)
+        serve(app, host="127.0.0.1", port=8991, threads=8)
     except ImportError:
         print("未安装 waitress，使用 Flask 开发服务器（单线程，仅适合本地调试）")
         app.run(host="0.0.0.0", port=8991, debug=False)
